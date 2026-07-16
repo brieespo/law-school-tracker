@@ -1,0 +1,2313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Law School Command Center</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+:root {
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --hairline: #e1e0d9;
+  --border: rgba(11,11,11,0.10);
+  --accent: #2a78d6;
+  --accent-strong: #1c5cab;
+  --meter-track: #cde2fb;
+  --tier-completed: #1c5cab;
+  --tier-progress: #3987e5;
+  --tier-planned: #86b6ef;
+  --good: #0ca30c;
+  --good-text: #006300;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --shadow: 0 1px 3px rgba(11,11,11,0.07);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --hairline: #2c2c2a;
+    --border: rgba(255,255,255,0.10);
+    --accent: #3987e5;
+    --accent-strong: #6da7ec;
+    --meter-track: #16233a;
+    --tier-completed: #6da7ec;
+    --tier-progress: #3987e5;
+    --tier-planned: #184f95;
+    --good-text: #0ca30c;
+    --shadow: none;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+.icon { width: 1em; height: 1em; display: inline-block; vertical-align: -0.125em; flex: none; }
+.icon-lg { width: 1.6em; height: 1.6em; vertical-align: -0.35em; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; background: var(--muted); vertical-align: 1px; }
+.status-dot.good { background: var(--good); }
+.status-dot.warning { background: var(--warning); }
+.status-dot.critical { background: var(--critical); }
+.cp-dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--muted); display: inline-block; margin-right: 4px; vertical-align: 1px; }
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--page);
+  color: var(--ink);
+  line-height: 1.45;
+  padding-bottom: 60px;
+}
+header.app-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--hairline);
+  padding: 14px 20px 0;
+  position: sticky; top: 0; z-index: 20;
+}
+.header-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; max-width: 1280px; margin: 0 auto; }
+h1 { font-size: 1.15rem; font-weight: 650; display: inline-flex; align-items: center; gap: 7px; }
+h1 .icon-lg { color: var(--accent); }
+.header-sub { color: var(--muted); font-size: 0.8rem; }
+nav.tabs { display: flex; gap: 2px; max-width: 1280px; margin: 10px auto 0; overflow-x: auto; }
+nav.tabs button {
+  appearance: none; border: none; background: none; cursor: pointer;
+  font: inherit; font-size: 0.88rem; color: var(--ink-2);
+  padding: 8px 14px; border-radius: 8px 8px 0 0;
+  border-bottom: 2px solid transparent; white-space: nowrap;
+}
+nav.tabs button.active { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
+nav.tabs button:hover:not(.active):not(:disabled) { color: var(--ink); }
+nav.tabs button:disabled { color: var(--muted); cursor: default; opacity: 0.55; }
+nav.tabs .phase-chip { font-size: 0.62rem; background: var(--hairline); border-radius: 8px; padding: 1px 6px; margin-left: 4px; vertical-align: 1px; }
+
+main { max-width: 1280px; margin: 0 auto; padding: 20px; }
+.view { display: none; }
+.view.active { display: block; }
+
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px 18px; box-shadow: var(--shadow);
+}
+h2 { font-size: 0.95rem; font-weight: 650; margin-bottom: 10px; }
+h3 { font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
+
+/* ---- stat tiles ---- */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow); }
+.tile .label { font-size: 0.72rem; color: var(--muted); }
+.tile .value { font-size: 1.6rem; font-weight: 600; margin-top: 2px; }
+.tile .sub { font-size: 0.72rem; color: var(--ink-2); margin-top: 2px; }
+.tile.verdict-good .value { color: var(--good-text); }
+.tile.verdict-bad .value { color: var(--critical); }
+
+/* ---- meters ---- */
+.meter-row { margin-bottom: 14px; }
+.meter-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 0.82rem; }
+.meter-head .req-name { font-weight: 600; }
+.meter-head .req-num { color: var(--ink-2); font-size: 0.76rem; }
+.meter { height: 12px; border-radius: 6px; background: var(--meter-track); overflow: hidden; display: flex; margin-top: 4px; }
+.meter .seg { height: 100%; }
+.meter .seg + .seg { border-left: 2px solid var(--surface); }
+.seg.completed { background: var(--tier-completed); }
+.seg.inprogress { background: var(--tier-progress); }
+.seg.planned {
+  background: var(--tier-planned);
+  background-image: repeating-linear-gradient(45deg, transparent 0 4px, rgba(11,11,11,0.14) 4px 6px);
+}
+.meter-note { font-size: 0.72rem; color: var(--muted); margin-top: 3px; }
+.meter-done { font-size: 0.78rem; color: var(--good-text); font-weight: 600; }
+.tier-legend { display: flex; gap: 14px; font-size: 0.72rem; color: var(--ink-2); margin: 4px 0 16px; flex-wrap: wrap; }
+.tier-legend .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 4px; }
+
+/* ---- warnings ---- */
+.warn-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.warn-list li { display: flex; gap: 8px; align-items: baseline; font-size: 0.82rem; }
+.warn-icon { flex: none; font-size: 0.9rem; }
+.warn-list .lvl-good .warn-icon { color: var(--good-text); }
+.warn-list .lvl-warning .warn-icon { color: var(--warning); }
+.warn-list .lvl-critical .warn-icon { color: var(--critical); }
+.warn-list .lvl-critical { font-weight: 600; }
+
+.audit-grid { display: grid; grid-template-columns: 1fr 340px; gap: 16px; align-items: start; }
+@media (max-width: 900px) { .audit-grid { grid-template-columns: 1fr; } }
+
+/* ---- planner ---- */
+.planner-layout { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
+.planner-layout > div { min-width: 0; }
+@media (max-width: 1000px) { .planner-layout { grid-template-columns: 1fr; } }
+.pace-banner { margin-bottom: 12px; padding: 10px 14px; font-size: 0.85rem; }
+.pace-banner strong { font-size: 1rem; }
+.columns { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; align-items: stretch; }
+.sem-col {
+  flex: 0 0 210px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px;
+  min-height: 220px;
+}
+.sem-col.locked { flex-basis: 170px; opacity: 0.85; background: transparent; border-style: dashed; }
+.sem-col.summer { flex-basis: 180px; }
+.sem-col.dragover { outline: 2px solid var(--accent); outline-offset: -2px; }
+.sem-col h3 { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.sem-hours { font-size: 0.72rem; font-weight: 600; color: var(--ink-2); }
+.sem-hours.warn { color: var(--serious); }
+.sem-hours.over { color: var(--critical); }
+.sem-tag { font-size: 0.62rem; color: var(--muted); font-weight: 500; }
+.place-btn {
+  display: none; border: 1px dashed var(--accent); background: none; color: var(--accent);
+  border-radius: 8px; padding: 6px; font: inherit; font-size: 0.75rem; cursor: pointer;
+}
+body.selecting .sem-col:not(.locked) .place-btn { display: block; }
+
+.course-card {
+  border: 1px solid var(--border); border-radius: 10px; padding: 7px 9px;
+  background: var(--page); font-size: 0.8rem; cursor: grab;
+}
+.course-card.locked-card { cursor: default; }
+.course-card.selected { outline: 2px solid var(--accent); }
+.course-card .cc-top { display: flex; justify-content: space-between; gap: 6px; align-items: baseline; }
+.course-card .cc-name { font-weight: 600; }
+.course-card .cc-hrs { color: var(--ink-2); font-size: 0.72rem; flex: none; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.chip { font-size: 0.62rem; background: var(--hairline); color: var(--ink-2); border-radius: 8px; padding: 1px 6px; }
+.chip.b-core { background: var(--meter-track); color: var(--accent-strong); }
+.cc-actions { margin-top: 5px; display: flex; gap: 6px; }
+.cc-actions button {
+  font: inherit; font-size: 0.68rem; border: 1px solid var(--border); background: var(--surface);
+  color: var(--ink-2); border-radius: 6px; padding: 2px 7px; cursor: pointer;
+}
+.cc-actions button.danger { color: var(--critical); border-color: var(--critical); }
+
+.catalog-panel .course-card { margin-bottom: 8px; }
+.catalog-panel h3 { margin-top: 12px; }
+.catalog-panel h3:first-child { margin-top: 0; }
+.select-hint { font-size: 0.72rem; color: var(--accent); margin-bottom: 8px; display: none; }
+body.selecting .select-hint { display: block; }
+
+/* ---- scenarios ---- */
+.scenario-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 14px 0; font-size: 0.82rem; }
+.scenario-bar select, .scenario-bar input, .scenario-bar button,
+.form-grid input, .form-grid select, .form-grid button, .courses-toolbar button, .courses-toolbar input {
+  font: inherit; font-size: 0.8rem; padding: 6px 10px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; cursor: pointer; }
+button.ghost { cursor: pointer; }
+button.ghost:hover, .scenario-bar button:hover { border-color: var(--accent); }
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+@media (max-width: 700px) { .compare-grid { grid-template-columns: 1fr; } }
+.compare-grid table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+.compare-grid td, .compare-grid th { padding: 4px 6px; border-bottom: 1px solid var(--hairline); text-align: left; }
+.compare-grid td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---- courses table ---- */
+.sem-group { margin-bottom: 18px; }
+.sem-group h3 { color: var(--ink-2); border-bottom: 1px solid var(--hairline); padding-bottom: 4px; margin-bottom: 8px; }
+.course-row {
+  display: grid; grid-template-columns: minmax(140px, 2fr) 60px 130px 90px minmax(120px, 1.5fr) 70px;
+  gap: 8px; align-items: center; padding: 6px 0; font-size: 0.82rem;
+  border-bottom: 1px solid var(--hairline);
+}
+@media (max-width: 760px) { .course-row { grid-template-columns: 1fr 50px 110px; } .course-row .chips, .course-row .grade-cell, .course-row .row-del { display: none; } }
+.course-row select, .course-row input {
+  font: inherit; font-size: 0.76rem; padding: 3px 6px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--ink); width: 100%;
+}
+.course-row .hrs { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.course-row .row-del button { font-size: 0.68rem; border: none; background: none; color: var(--muted); cursor: pointer; }
+.course-row .row-del button:hover { color: var(--critical); }
+.form-grid { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+.form-grid label { font-size: 0.75rem; color: var(--ink-2); display: flex; align-items: center; gap: 4px; }
+.courses-toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; font-size: 0.8rem; color: var(--ink-2); }
+
+/* ---- agenda ---- */
+.agenda-grid { display: grid; grid-template-columns: 1fr 280px; gap: 16px; align-items: start; }
+@media (max-width: 900px) { .agenda-grid { grid-template-columns: 1fr; } }
+.agenda-grid > div { min-width: 0; }
+.day-group { margin-bottom: 16px; }
+.day-group h3 { color: var(--ink-2); border-bottom: 1px solid var(--hairline); padding-bottom: 4px; margin-bottom: 6px; }
+.day-group h3 .dow-today { color: var(--accent); }
+.evt { display: flex; gap: 10px; align-items: baseline; padding: 5px 0; font-size: 0.84rem; }
+.evt-time { flex: none; width: 86px; color: var(--muted); font-size: 0.76rem; font-variant-numeric: tabular-nums; }
+.evt-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; align-self: center; }
+.evt-title { min-width: 0; }
+.evt-cal { font-size: 0.66rem; color: var(--muted); margin-left: 6px; white-space: nowrap; }
+.cal-toggle { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; padding: 4px 0; cursor: pointer; }
+.cal-toggle .evt-dot { align-self: center; }
+#gcal-status { font-size: 0.76rem; color: var(--muted); margin-bottom: 8px; min-height: 1.1em; }
+.setup-steps { font-size: 0.82rem; color: var(--ink-2); margin: 8px 0 12px 18px; display: flex; flex-direction: column; gap: 6px; }
+.setup-steps code { background: var(--hairline); padding: 1px 5px; border-radius: 4px; font-size: 0.76rem; }
+#gcal-client-id { width: 100%; font: inherit; font-size: 0.8rem; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--page); color: var(--ink); margin-bottom: 8px; }
+
+/* ---- study planner ---- */
+.avail-grid { display: grid; grid-template-columns: 82px repeat(7, 1fr); gap: 4px; font-size: 0.74rem; max-width: 640px; }
+.avail-grid .ag-head { text-align: center; color: var(--muted); padding: 2px 0; }
+.avail-grid .ag-slot { color: var(--ink-2); display: flex; align-items: center; }
+.avail-cell { border: 1px solid var(--border); border-radius: 6px; padding: 7px 0; text-align: center; cursor: pointer; background: var(--page); color: var(--muted); user-select: none; }
+.avail-cell.on { background: var(--meter-track); border-color: var(--accent); color: var(--accent-strong); font-weight: 600; }
+.study-row { display: grid; grid-template-columns: minmax(130px, 1.4fr) 130px minmax(110px, 1fr) 70px 140px minmax(120px, 1.2fr); gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--hairline); font-size: 0.8rem; }
+@media (max-width: 860px) { .study-row { grid-template-columns: 1fr 1fr; } }
+.study-row input[type="date"], .study-row select, .study-row input[type="url"] { font: inherit; font-size: 0.76rem; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); width: 100%; }
+.study-row input[type="range"] { width: 100%; accent-color: var(--accent); }
+.study-row .conf-label { font-size: 0.68rem; color: var(--muted); }
+.study-head { font-size: 0.68rem; color: var(--muted); border-bottom: none; padding-bottom: 0; }
+.plan-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 8px; }
+@media (max-width: 800px) { .plan-week { grid-template-columns: 1fr 1fr; } }
+.plan-day { border: 1px solid var(--hairline); border-radius: 8px; padding: 5px 6px; min-height: 52px; background: var(--surface); }
+.plan-day.today-col { border-color: var(--accent); }
+.plan-day h4 { font-size: 0.66rem; color: var(--muted); font-weight: 600; margin-bottom: 2px; }
+.plan-block { border-radius: 6px; padding: 4px 6px; font-size: 0.68rem; margin-top: 4px; background: var(--page); border: 1px solid var(--border); border-left-width: 4px; display: flex; gap: 5px; align-items: flex-start; }
+.plan-block.done { opacity: 0.5; }
+.plan-block.done .pb-label { text-decoration: line-through; }
+.plan-block.skipped { opacity: 0.4; border-style: dashed; }
+.plan-block.skipped .pb-label { text-decoration: line-through; }
+.plan-block input[type="checkbox"] { margin-top: 1px; cursor: pointer; }
+.pb-label b { display: block; }
+.pb-slot { color: var(--muted); }
+.pb-skip { border: none; background: none; color: var(--muted); cursor: pointer; font-size: 0.66rem; padding: 0; margin-left: auto; }
+.pb-skip:hover { color: var(--critical); }
+.plan-summary { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.76rem; color: var(--ink-2); margin: 8px 0 12px; }
+.plan-summary .ps-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.study-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 10px 0; font-size: 0.8rem; }
+.study-controls input[type="date"] { font: inherit; font-size: 0.8rem; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
+.study-note { font-size: 0.74rem; color: var(--muted); margin-top: 6px; }
+
+/* ---- note stage stepper ---- */
+.stage { display: flex; gap: 12px; padding: 12px 10px; border-bottom: 1px solid var(--hairline); border-radius: 8px; }
+.stage:last-child { border-bottom: none; }
+.stage-num { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--hairline); color: var(--ink-2);
+  display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; }
+.stage.past .stage-num { background: var(--tier-completed); color: #fff; }
+.stage.current { background: var(--meter-track); }
+.stage.current .stage-num { background: var(--accent); color: #fff; }
+.stage-body { min-width: 0; }
+.stage-title { font-size: 0.86rem; font-weight: 600; }
+.stage-title .stage-month { color: var(--muted); font-weight: 500; font-size: 0.72rem; margin-left: 6px; }
+.stage-q { font-size: 0.8rem; color: var(--ink-2); font-style: italic; margin-top: 2px; }
+.stage-cp { font-size: 0.74rem; margin-top: 4px; color: var(--ink-2); }
+.stage-cp .cp-done { color: var(--good-text); }
+.stage-cp .cp-next { color: var(--accent-strong); font-weight: 600; }
+.stage.past .stage-title, .stage.past .stage-q { color: var(--muted); }
+
+/* ---- milestones ---- */
+.ms-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; background: var(--page); }
+.ms-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.ms-name { font-weight: 650; font-size: 0.95rem; }
+.ms-head input[type="date"] { font: inherit; font-size: 0.78rem; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
+.ms-count { font-size: 0.76rem; color: var(--ink-2); }
+.ms-count.overdue { color: var(--critical); font-weight: 600; }
+.chip.tentative { background: var(--warning); color: #4a3400; }
+.ms-notes { font-size: 0.76rem; color: var(--muted); margin: 6px 0 8px; }
+.ms-task { display: flex; gap: 8px; align-items: baseline; font-size: 0.8rem; padding: 3px 0; }
+.ms-task .mt-date { color: var(--muted); font-size: 0.72rem; width: 150px; flex: none; font-variant-numeric: tabular-nums; }
+.ms-task.done .mt-label { text-decoration: line-through; color: var(--muted); }
+.ms-task.overdue .mt-date { color: var(--critical); font-weight: 600; }
+.ms-task button { border: none; background: none; color: var(--muted); cursor: pointer; font-size: 0.7rem; margin-left: auto; }
+.ms-task button:hover { color: var(--critical); }
+.ms-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; align-items: center; }
+.ms-actions input, .ms-actions button { font: inherit; font-size: 0.74rem; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
+.ms-actions button { cursor: pointer; }
+#ms-sync-status { font-size: 0.78rem; color: var(--ink-2); }
+
+/* ---- student orgs ---- */
+.org-row { display: flex; gap: 8px; align-items: center; padding: 5px 0; flex-wrap: wrap; }
+.org-row input { font: inherit; font-size: 0.8rem; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
+.org-row input[type="text"], .org-row input[type="email"] { flex: 1 1 140px; min-width: 100px; }
+.org-row input[type="tel"] { flex: 1 1 110px; min-width: 90px; }
+.org-row button { border: none; background: none; color: var(--muted); cursor: pointer; flex: none; }
+.org-row button:hover { color: var(--critical); }
+.org-more-note { font-size: 0.74rem; color: var(--muted); margin-top: 10px; border-top: 1px solid var(--hairline); padding-top: 8px; }
+
+/* ---- auth ---- */
+#auth-overlay { position: fixed; inset: 0; background: var(--page); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+#auth-overlay.hidden { display: none; }
+.auth-box { max-width: 340px; width: 100%; text-align: center; }
+.auth-box .auth-logo { width: 2rem; height: 2rem; color: var(--accent); }
+.auth-box h2 { margin: 6px 0 2px; }
+.auth-box .auth-sub { font-size: 0.8rem; color: var(--ink-2); margin-bottom: 14px; }
+.auth-field { text-align: left; margin-bottom: 10px; }
+.auth-field label { font-size: 0.72rem; color: var(--muted); display: block; margin-bottom: 2px; }
+.auth-field input { width: 100%; font: inherit; font-size: 0.85rem; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--page); color: var(--ink); }
+.auth-box button { width: 100%; font: inherit; font-size: 0.85rem; padding: 8px; border-radius: 8px; cursor: pointer; margin-top: 8px; }
+.auth-remember { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--ink-2); margin-top: 2px; }
+.auth-err { font-size: 0.78rem; color: var(--critical); min-height: 1.2em; margin-top: 8px; }
+.auth-err.ok { color: var(--good-text); }
+.auth-toggle { font-size: 0.78rem; color: var(--ink-2); margin-top: 10px; }
+.auth-toggle a { color: var(--accent); cursor: pointer; }
+.user-info { margin-left: auto; font-size: 0.72rem; color: var(--muted); text-align: right; }
+.user-info a { color: var(--accent); cursor: pointer; }
+#sync-status { font-weight: 600; }
+
+footer { max-width: 1280px; margin: 24px auto 0; padding: 0 20px; font-size: 0.72rem; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; }
+footer button { font: inherit; font-size: 0.72rem; border: none; background: none; color: var(--muted); text-decoration: underline; cursor: pointer; }
+.placeholder-note { color: var(--muted); font-size: 0.85rem; padding: 30px 0; text-align: center; }
+</style>
+</head>
+<body>
+
+<div id="auth-overlay">
+  <div class="auth-box card">
+    <div class="auth-logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="100%" height="100%"><path d="M12 3v18M5 8l-3 6a4 4 0 0 0 8 0zM19 8l-3 6a4 4 0 0 0 8 0zM5 8h14M9 3h6"/></svg></div>
+    <h2>Law School Command Center</h2>
+    <p class="auth-sub" id="auth-subtitle">Sign in — same account as the Dinner Planner</p>
+    <div class="auth-field">
+      <label>Email</label>
+      <input type="email" id="auth-email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')authSubmit()">
+    </div>
+    <div class="auth-field">
+      <label>Password</label>
+      <input type="password" id="auth-password" placeholder="Password" onkeydown="if(event.key==='Enter')authSubmit()">
+    </div>
+    <label class="auth-remember"><input type="checkbox" id="auth-remember"> Remember me</label>
+    <button class="primary" id="auth-btn" onclick="authSubmit()">Sign In</button>
+    <button class="ghost" onclick="authGuest()">Continue without an account (this browser only)</button>
+    <div class="auth-err" id="auth-err"></div>
+    <div class="auth-toggle">
+      <span id="auth-toggle-text">Don't have an account?</span>
+      <a onclick="toggleAuthMode()"><span id="auth-toggle-link"> Sign up</span></a>
+    </div>
+  </div>
+</div>
+
+<header class="app-header">
+  <div class="header-row">
+    <h1><svg class="icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 8l-3 6a4 4 0 0 0 8 0zM19 8l-3 6a4 4 0 0 0 8 0zM5 8h14M9 3h6"/></svg> Law School Command Center</h1>
+    <span class="header-sub">Brandeis School of Law · target May 2028 · Indiana bar</span>
+    <div class="user-info" id="user-info" style="display:none">
+      <span id="user-email"></span> · <span id="sync-status"></span> · <a onclick="doSignOut()">sign out</a>
+    </div>
+  </div>
+  <nav class="tabs" id="tabs">
+    <button data-view="agenda">Agenda</button>
+    <button data-view="audit" class="active">Degree Audit</button>
+    <button data-view="planner">Semester Planner</button>
+    <button data-view="courses">Courses</button>
+    <button data-view="notes">Law Review</button>
+    <button data-view="study">Study Planner</button>
+    <button data-view="milestones">Milestones</button>
+    <button data-view="orgs">Student Orgs</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ============ AGENDA ============ -->
+  <section class="view" id="view-agenda">
+    <div class="card pace-banner" id="note-banner"></div>
+    <div class="card" id="gcal-setup" style="margin-bottom:16px"></div>
+    <div class="agenda-grid" id="agenda-connected" style="display:none">
+      <div class="card">
+        <h2>Next 14 days</h2>
+        <div id="agenda-days"></div>
+      </div>
+      <div class="card">
+        <h2>Calendars</h2>
+        <div id="gcal-status"></div>
+        <div id="cal-toggle-list"></div>
+        <button class="ghost" style="margin-top:10px;font:inherit;font-size:0.78rem;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--ink);display:inline-flex;align-items:center;gap:5px" onclick="refreshAgenda()"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Refresh</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ NOTE TRACKER ============ -->
+  <section class="view" id="view-notes">
+    <div class="audit-grid">
+      <div class="card">
+        <h2>Note-writing roadmap — Law Review Volume 65</h2>
+        <div id="stage-stepper"></div>
+      </div>
+      <div class="card">
+        <h2>Checkpoints</h2>
+        <p style="font-size:0.76rem;color:var(--muted);margin-bottom:8px">From the Volume 65 note-writing schedule. The Law Review calendar remains the source of truth — these drive the countdown.</p>
+        <ul class="warn-list" id="cp-list"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STUDY PLANNER ============ -->
+  <section class="view" id="view-study">
+    <div class="card" style="margin-bottom:16px">
+      <h2>Weekly availability</h2>
+      <p style="font-size:0.78rem;color:var(--ink-2);margin-bottom:10px">Tap the blocks you can study. Remembered between semesters.</p>
+      <div class="avail-grid" id="avail-grid"></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <h2>Courses this semester</h2>
+      <p style="font-size:0.78rem;color:var(--ink-2);margin-bottom:6px">Exam date and confidence drive the plan — shaky courses get more blocks. The outline tracker feeds it too: courses without an exam-ready outline start with outline-building sessions.</p>
+      <div id="study-courses"></div>
+    </div>
+    <div class="card">
+      <h2>Finals mode</h2>
+      <div class="study-controls">
+        <label>Start studying on <input type="date" id="study-start"></label>
+        <button class="primary" style="font:inherit;font-size:0.82rem;padding:7px 14px;border-radius:8px;cursor:pointer" onclick="generatePlan()">Generate plan</button>
+        <button class="ghost" style="font:inherit;font-size:0.78rem;padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--ink);cursor:pointer" onclick="rebalancePlan()">Rebalance remaining</button>
+        <button class="ghost" style="font:inherit;font-size:0.78rem;padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--ink);cursor:pointer" onclick="clearPlan()">Clear</button>
+      </div>
+      <div class="study-note" id="study-conflict-note"></div>
+      <div class="plan-summary" id="plan-summary"></div>
+      <div id="plan-grid"></div>
+    </div>
+  </section>
+
+  <!-- ============ MILESTONES ============ -->
+  <section class="view" id="view-milestones">
+    <div class="card">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+        <h2 style="margin:0">Milestones — today through the bar</h2>
+        <button class="primary" style="font:inherit;font-size:0.78rem;padding:6px 12px;border-radius:8px;cursor:pointer" onclick="syncToGoogle()">Sync to Google Calendar</button>
+        <span id="ms-sync-status"></span>
+      </div>
+      <p style="font-size:0.76rem;color:var(--muted);margin-bottom:12px">Dates marked <span class="chip tentative">confirm date</span> are placeholders — official dates are entered by you, never assumed. Sync creates an app-owned "Law School App" calendar and (re)writes milestone reminders plus your upcoming study blocks into it; your own calendars are never touched.</p>
+      <div id="ms-list"></div>
+      <div class="ms-actions" style="border-top:1px solid var(--hairline);padding-top:10px">
+        <strong style="font-size:0.78rem">Add milestone:</strong>
+        <input type="text" id="ms-new-name" placeholder="Name" style="width:180px">
+        <input type="date" id="ms-new-date">
+        <button onclick="addMilestone()">Add</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STUDENT ORGS ============ -->
+  <section class="view" id="view-orgs">
+    <div class="card">
+      <h2 style="margin-bottom:6px">Student Orgs</h2>
+      <p style="font-size:0.76rem;color:var(--muted);margin-bottom:12px">Board contacts, org to-dos, and meeting dates per organization.</p>
+      <div id="orgs-list"></div>
+      <div class="ms-actions" style="border-top:1px solid var(--hairline);padding-top:10px">
+        <strong style="font-size:0.78rem">Add organization:</strong>
+        <input type="text" id="org-new-name" placeholder="Org name" style="width:200px">
+        <input type="text" id="org-new-role" placeholder="Your role (e.g. President)" style="width:180px">
+        <button onclick="addOrg()">Add</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DEGREE AUDIT ============ -->
+  <section class="view active" id="view-audit">
+    <div class="tiles" id="audit-tiles"></div>
+    <div class="audit-grid">
+      <div class="card">
+        <h2>Requirement buckets</h2>
+        <div class="tier-legend">
+          <span><span class="swatch" style="background:var(--tier-completed)"></span>Completed</span>
+          <span><span class="swatch" style="background:var(--tier-progress)"></span>In progress (Fall 2026)</span>
+          <span><span class="swatch seg planned" style="display:inline-block"></span>Planned</span>
+        </div>
+        <div id="audit-meters"></div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <h2>Warnings &amp; limits</h2>
+          <ul class="warn-list" id="audit-warnings"></ul>
+        </div>
+        <div class="card">
+          <h2>Gaps in the current plan</h2>
+          <ul class="warn-list" id="audit-gaps"></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SEMESTER PLANNER ============ -->
+  <section class="view" id="view-planner">
+    <div class="card pace-banner" id="pace-banner"></div>
+    <div class="planner-layout">
+      <div>
+        <div class="columns" id="planner-columns"></div>
+        <div class="scenario-bar card" id="scenario-bar">
+          <strong style="font-size:0.8rem">Scenarios:</strong>
+          <input type="text" id="scenario-name" placeholder="Name this plan…" style="width:150px">
+          <button class="ghost" id="scenario-save">Save current</button>
+          <select id="scenario-list"></select>
+          <button class="ghost" id="scenario-load">Load</button>
+          <button class="ghost" id="scenario-dup">Duplicate</button>
+          <button class="ghost" id="scenario-del">Delete</button>
+          <button class="ghost" id="scenario-compare">Compare two…</button>
+        </div>
+        <div id="compare-area"></div>
+      </div>
+      <div class="card catalog-panel">
+        <h2>Course catalog</h2>
+        <p class="select-hint">Now tap a semester column to place it — or tap the card again to cancel.</p>
+        <div id="catalog-content"></div>
+        <h3>Add a custom course</h3>
+        <div class="form-grid" id="catalog-add-form">
+          <input type="text" id="cat-name" placeholder="Course name" style="width:140px">
+          <input type="number" id="cat-hours" placeholder="Hrs" min="1" max="6" style="width:58px">
+          <select id="cat-bucket">
+            <option value="">Elective</option>
+            <option value="core">Core</option>
+            <option value="perspective">Perspective</option>
+            <option value="experiential_simulation">Simulation</option>
+            <option value="experiential_live_client">Live client</option>
+          </select>
+          <button class="primary" id="cat-add-btn">Add</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ COURSES ============ -->
+  <section class="view" id="view-courses">
+    <div class="card">
+      <div class="courses-toolbar">
+        <span>Every course on the transcript or plan. Completed courses are locked facts; the pending Fall 2026 drop is one tap on the card's status.</span>
+      </div>
+      <div id="courses-list"></div>
+      <h3 style="margin-top:16px">Add course</h3>
+      <div class="form-grid">
+        <input type="text" id="add-name" placeholder="Course name" style="width:160px">
+        <input type="number" id="add-hours" placeholder="Hrs" min="1" max="6" style="width:58px">
+        <select id="add-semester"></select>
+        <select id="add-bucket">
+          <option value="">Elective</option>
+          <option value="core">Core</option>
+          <option value="perspective">Perspective</option>
+          <option value="experiential_simulation">Simulation</option>
+          <option value="experiential_live_client">Live client</option>
+        </select>
+        <label><input type="checkbox" id="add-online"> online</label>
+        <label><input type="checkbox" id="add-passfail"> pass/fail</label>
+        <button class="primary" id="add-course-btn">Add</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span>Signed-in data syncs to Supabase (same account as the Dinner Planner); guest mode stays in this browser. Google Calendar comes next.</span>
+  <button id="export-json">Export data (JSON)</button>
+  <button id="import-json">Import data (JSON)</button>
+  <button id="reset-seed">Reset to seed data</button>
+</footer>
+
+<script>
+"use strict";
+
+/* =====================================================================
+   SEED DATA — from law-courses-seed.json (unofficial transcript 2026-07-09)
+   ===================================================================== */
+const SEED = {
+  courses: [
+    // grades intentionally not seeded — they live only in each user's private account row
+    { id:1,  code:"LAW 800", name:"Contracts",                      hours:4, semester:"Fall 2025",   status:"completed", buckets:["1L"] },
+    { id:2,  code:"LAW 801", name:"Torts",                          hours:4, semester:"Fall 2025",   status:"completed", buckets:["1L"] },
+    { id:3,  code:"LAW 811", name:"Lawyering Skills I",             hours:3, semester:"Fall 2025",   status:"completed", buckets:["1L"] },
+    { id:4,  code:"LAW 815", name:"Civil Procedure",                hours:4, semester:"Fall 2025",   status:"completed", buckets:["1L"] },
+    { id:5,  code:"LAW 810", name:"Criminal Law",                   hours:3, semester:"Spring 2026", status:"completed", buckets:["1L"] },
+    { id:6,  code:"LAW 812", name:"Lawyering Skills II",            hours:3, semester:"Spring 2026", status:"completed", buckets:["1L"] },
+    { id:7,  code:"LAW 814", name:"Property",                       hours:4, semester:"Spring 2026", status:"completed", buckets:["1L"] },
+    { id:8,  code:"LAW 816", name:"Professional Identity",          hours:1, semester:"Spring 2026", status:"completed", buckets:["1L"], pass_fail:true },
+    { id:9,  code:"LAW 819", name:"Constitutional Law I",           hours:4, semester:"Spring 2026", status:"completed", buckets:["1L"] },
+    { id:10, code:"LAW 821", name:"Crim Proc: Constitutional Issues", hours:3, semester:"Fall 2026", status:"in_progress", buckets:["core"], online:true },
+    { id:11, code:"LAW 822", name:"Crim Proc: Judicial Process",    hours:3, semester:"Fall 2026",   status:"in_progress", buckets:["core"] },
+    { id:12, code:"LAW 823", name:"Evidence",                       hours:4, semester:"Fall 2026",   status:"in_progress", buckets:["core"] },
+    { id:13, code:"LAW 859", name:"Professional Responsibility",    hours:3, semester:"Fall 2026",   status:"in_progress", buckets:["professional_responsibility"], online:true },
+    { id:14, code:"LAW 900", name:"KY Innocence Project Clinic I",  hours:2, semester:"Fall 2026",   status:"in_progress", buckets:["experiential_live_client"], live_client:true, pass_fail:true },
+    { id:15, code:"LAW 901", name:"KY Innocence Project Clinic II", hours:2, semester:"Spring 2027", status:"planned",     buckets:["experiential_live_client"], live_client:true, pass_fail:true },
+    { id:16, name:"Law Review (Vol 65)", hours:2, semester:"Fall 2026",   status:"in_progress", buckets:[], journal_credit:true },
+    { id:17, name:"Law Review (Vol 65)", hours:2, semester:"Spring 2027", status:"planned",     buckets:[], journal_credit:true }
+  ],
+  milestones: [
+    {
+      id: 1, name: "MPRE", date: "2027-08-15", tentative: true, status: "planned",
+      notes: "Target Aug 2027 by choice: Indiana's ~2-year score validity then covers the July 2028 bar plus a Feb 2029 retake with room to spare. Confirm the exact administration date when NCBE posts it.",
+      lead_tasks: [
+        { label: "Verify current Indiana MPRE score-validity rule (Indiana BLE site)", days_before: 90, done: false },
+        { label: "Register for MPRE", days_before: 60, done: false },
+        { label: "Start MPRE prep (free Barbri/Themis course)", days_before: 30, done: false }
+      ]
+    },
+    {
+      id: 2, name: "Indiana Bar Exam", date: "2028-07-25", tentative: true, status: "planned",
+      notes: "Indiana runs its own exam (not UBE as of last check) — verify format and dates on the Indiana Board of Law Examiners site during 3L.",
+      lead_tasks: [
+        { label: "Buy bar prep course (fall 3L discounts / payment plans)", days_before: 300, done: false },
+        { label: "Verify Indiana C&F early-filing discount window", days_before: 240, done: false },
+        { label: "Submit bar application + character & fitness paperwork (slow — start early)", days_before: 150, done: false },
+        { label: "Bar prep course begins", days_before: 60, done: false }
+      ]
+    },
+    {
+      id: 3, name: "Degree application & graduation forms", date: "2028-02-01", tentative: true, status: "planned",
+      notes: "The school announces the real deadline — update this date when it's posted. Includes graduate information + employment surveys.",
+      lead_tasks: [
+        { label: "Watch registrar announcements for the official deadline", days_before: 60, done: false }
+      ]
+    }
+  ],
+  public_service_log: [],
+  settings: {
+    targetGrad: "Spring 2028",
+    currentSemester: "Fall 2026",
+    maxSemesterHours: 17,
+    minSemesterHours: 12,
+    _savedPlans: [],
+    study: {
+      availability: {
+        Mon: { evening: true }, Tue: { evening: true }, Wed: { evening: true },
+        Thu: { evening: true }, Fri: { evening: true },
+        Sat: { morning: true, afternoon: true }, Sun: { morning: true, afternoon: true }
+      },
+      startDate: "",
+      plan: []
+    },
+    studentOrgs: [
+      { id: 1, name: "Labor & Employment Law Society", role: "President", board: [], tasks: [], meetings: [] }
+    ]
+  }
+};
+
+/* =====================================================================
+   REQUIREMENTS ENGINE — official Fall-2024+ graduation checklist
+   ===================================================================== */
+const SEMESTER_ORDER = [
+  "Fall 2025", "Spring 2026", "Summer 2026",
+  "Fall 2026", "Spring 2027", "Summer 2027",
+  "Fall 2027", "Spring 2028", "Summer 2028"
+];
+const isSummer = s => /^Summer/.test(s);
+const semIdx = s => SEMESTER_ORDER.indexOf(s);
+
+const REQUIREMENTS = {
+  totalHours: 90,
+  oneL: { label: "1L required", minHours: 30 },
+  core: {
+    label: "Core courses", minHours: 18,
+    menu: [
+      { name: "Advanced Civil Procedure", hours: 3 },
+      { name: "Business Organizations", hours: 4 },
+      { name: "Commercial Law", hours: 3 },
+      { name: "Constitutional Law II", hours: 3 },
+      { name: "Crim Proc: Constitutional Issues", hours: 3 },
+      { name: "Crim Proc: Judicial Process", hours: 3 },
+      { name: "Decedents' Estates & Trusts", hours: 3 },
+      { name: "Evidence", hours: 4 },
+      { name: "Family Law", hours: 3 },
+      { name: "Products Liability", hours: 3 },
+      { name: "Real Estate Transactions", hours: 3 }
+    ]
+  },
+  pr: { label: "Professional Responsibility", minHours: 3 },
+  perspective: { label: "Perspective course", minHours: 2, maxHours: 3 },
+  experiential: { label: "Experiential", minHours: 6, liveClientMin: 2, liveClientMax: 6, simulationMax: 4 },
+  ulwr: { label: "ULWR", satisfied: true, via: "Law Review membership" },
+  publicService: { label: "Public service (30 hrs)", satisfied: true, via: "transcript milestone — completed" },
+  limits: {
+    combinedRestricted: 25,   // non-law + live client + moot court + independent study + journal
+    online: 30,
+    transfer: 30,
+    independentStudy: 4,
+    journal: 7
+  }
+};
+
+/* Generic catalog templates alongside the core menu */
+const CATALOG_TEMPLATES = [
+  { name: "Perspective Course", hours: 3, buckets: ["perspective"], repeatable: false },
+  { name: "Simulation Course", hours: 2, buckets: ["experiential_simulation"], repeatable: true },
+  { name: "Law Review (journal)", hours: 2, buckets: [], journal_credit: true, repeatable: true },
+  { name: "Elective", hours: 3, buckets: [], repeatable: true }
+];
+
+/* =====================================================================
+   STORAGE — Supabase (shared project with the dinner planner, so one
+   login covers both apps) with localStorage as offline cache and as the
+   whole store in guest mode. One law_school_data row per user.
+   ===================================================================== */
+const SUPABASE_URL = "https://zymvsdkwmdhrwjycxisr.supabase.co";
+const SUPABASE_KEY = "sb_publishable_svwMiYGDfWnINCeo28XiLw_UIFHRUg5";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const STORE_KEY = "lawSchoolData.v1";
+const store = {
+  load() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (raw) return normalizeData(JSON.parse(raw));
+    } catch (e) { console.warn("load failed, reseeding", e); }
+    const fresh = JSON.parse(JSON.stringify(SEED));
+    this.save(fresh);
+    return fresh;
+  },
+  save(d) { localStorage.setItem(STORE_KEY, JSON.stringify(d)); }
+};
+
+// Cloud rows or old local blobs may predate newer settings keys — fill defaults.
+function normalizeData(d) {
+  const seed = JSON.parse(JSON.stringify(SEED));
+  const out = {
+    courses: Array.isArray(d.courses) && d.courses.length ? d.courses : seed.courses,
+    milestones: Array.isArray(d.milestones) && d.milestones.length ? d.milestones : seed.milestones,
+    public_service_log: Array.isArray(d.public_service_log) ? d.public_service_log : [],
+    settings: Object.assign(seed.settings, d.settings || {})
+  };
+  // one-time: add Law Review journal credits (2 hrs/semester, Vol 65) to data saved before they existed
+  if (!out.settings._lrMigrated) {
+    if (!out.courses.some(c => c.journal_credit)) {
+      const nid = out.courses.reduce((m, c) => Math.max(m, c.id), 0);
+      out.courses.push(
+        { id: nid + 1, name: "Law Review (Vol 65)", hours: 2, semester: "Fall 2026", status: "in_progress", buckets: [], journal_credit: true },
+        { id: nid + 2, name: "Law Review (Vol 65)", hours: 2, semester: "Spring 2027", status: "planned", buckets: [], journal_credit: true }
+      );
+    }
+    out.settings._lrMigrated = true;
+  }
+  return out;
+}
+
+let data = store.load();
+let currentUser = null;
+let guestMode = false;
+let saveTimer = null;
+
+function persist() {
+  store.save(data);
+  if (currentUser && !guestMode) {
+    setSyncStatus("saving…", "muted");
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(pushToCloud, 600);
+  }
+}
+async function pushToCloud() {
+  if (!currentUser || guestMode) return;
+  try {
+    const { error } = await sb.from("law_school_data").upsert({
+      user_id: currentUser.id,
+      courses: data.courses,
+      milestones: data.milestones,
+      public_service_log: data.public_service_log,
+      settings: data.settings,
+      updated_at: new Date().toISOString()
+    }, { onConflict: "user_id" });
+    if (error) throw error;
+    setSyncStatus("saved", "good");
+  } catch (e) {
+    console.error("cloud save error", e);
+    setSyncStatus("sync error — data kept locally", "critical");
+  }
+}
+async function loadUserData(user) {
+  try {
+    const { data: row, error } = await sb.from("law_school_data").select("*").eq("user_id", user.id).maybeSingle();
+    if (error) throw error;
+    if (row) {
+      data = normalizeData(row);
+      store.save(data);
+      setSyncStatus("saved", "good");
+    } else {
+      // First sign-in: adopt whatever this browser already has (local plans or fresh seed)
+      await pushToCloud();
+    }
+  } catch (e) {
+    console.error("cloud load error", e);
+    setSyncStatus("sync error — using local data", "critical");
+  }
+  renderAll();
+}
+function setSyncStatus(msg, level = "muted") { $("#sync-status").innerHTML = statusDot(level) + esc(msg); }
+
+/* ---- auth (dinner-planner pattern) ---- */
+let _authMode = "signin";
+function toggleAuthMode() {
+  _authMode = _authMode === "signin" ? "signup" : "signin";
+  $("#auth-btn").textContent = _authMode === "signin" ? "Sign In" : "Sign Up";
+  $("#auth-subtitle").textContent = _authMode === "signin" ? "Sign in — same account as the Dinner Planner" : "Create your account";
+  $("#auth-toggle-text").textContent = _authMode === "signin" ? "Don't have an account?" : "Already have an account?";
+  $("#auth-toggle-link").textContent = _authMode === "signin" ? " Sign up" : " Sign in";
+  $("#auth-err").textContent = ""; $("#auth-err").className = "auth-err";
+}
+async function authSubmit() {
+  const email = $("#auth-email").value.trim();
+  const pass = $("#auth-password").value;
+  const errEl = $("#auth-err");
+  errEl.textContent = ""; errEl.className = "auth-err";
+  if (!email || !pass) { errEl.textContent = "Please enter your email and password."; return; }
+  if ($("#auth-remember").checked) localStorage.setItem("ls-remembered-email", email);
+  else localStorage.removeItem("ls-remembered-email");
+  const { data: res, error } = _authMode === "signin"
+    ? await sb.auth.signInWithPassword({ email, password: pass })
+    : await sb.auth.signUp({ email, password: pass });
+  if (error) { errEl.textContent = error.message; return; }
+  if (_authMode === "signup" && !res.session) { errEl.innerHTML = ICONS.check + " Check your email to confirm your account."; errEl.className = "auth-err ok"; return; }
+  if (res.session) await handleAuthSession(res.session);
+}
+async function handleAuthSession(session) {
+  if (!session || (currentUser && currentUser.id === session.user.id)) return;
+  currentUser = session.user;
+  $("#auth-overlay").classList.add("hidden");
+  $("#user-info").style.display = "block";
+  $("#user-email").textContent = currentUser.email;
+  setSyncStatus("loading…", "muted");
+  await loadUserData(currentUser);
+}
+function authGuest() {
+  guestMode = true;
+  $("#auth-overlay").classList.add("hidden");
+  $("#user-info").style.display = "block";
+  $("#user-email").textContent = "guest";
+  setSyncStatus("this browser only", "muted");
+}
+async function doSignOut() {
+  if (guestMode) { location.reload(); return; }
+  await sb.auth.signOut();
+  location.reload();
+}
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (session && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) await handleAuthSession(session);
+  if (!session && !guestMode) {
+    currentUser = null;
+    $("#auth-overlay").classList.remove("hidden");
+    $("#user-info").style.display = "none";
+  }
+});
+const hoursOf = list => list.reduce((s, c) => s + (Number(c.hours) || 0), 0);
+const nextId = () => data.courses.reduce((m, c) => Math.max(m, c.id), 0) + 1;
+const inBucket = (c, b) => Array.isArray(c.buckets) && c.buckets.includes(b);
+const isLiveClient = c => c.live_client || inBucket(c, "experiential_live_client");
+const isSimulation = c => c.simulation || inBucket(c, "experiential_simulation");
+const isRestricted = c => c.non_law || c.independent_study || c.journal_credit || c.moot_court || isLiveClient(c);
+
+/* =====================================================================
+   AUDIT ENGINE
+   ===================================================================== */
+function computeAudit(courses, settings) {
+  const active = courses.filter(c => c.status !== "dropped");
+  const completed = active.filter(c => c.status === "completed");
+  const inProg = active.filter(c => c.status === "in_progress");
+  // Only planned courses actually placed in a semester count toward projections
+  const planned = active.filter(c => c.status === "planned" && c.semester);
+
+  const tiers = pred => ({
+    completed: hoursOf(completed.filter(pred)),
+    inProgress: hoursOf(inProg.filter(pred)),
+    planned: hoursOf(planned.filter(pred))
+  });
+  const projTotal = t => t.completed + t.inProgress + t.planned;
+
+  const total = tiers(() => true);
+  const buckets = [
+    { key: "total", label: "Total earned hours", min: REQUIREMENTS.totalHours, t: total },
+    { key: "oneL", label: REQUIREMENTS.oneL.label, min: 30, t: tiers(c => inBucket(c, "1L")) },
+    { key: "core", label: "Core courses (menu)", min: 18, t: tiers(c => inBucket(c, "core")), note: "Overflow counts toward the 90." },
+    { key: "pr", label: "Professional Responsibility", min: 3, t: tiers(c => inBucket(c, "professional_responsibility")) },
+    { key: "perspective", label: "Perspective course", min: 2, t: tiers(c => inBucket(c, "perspective")), note: "2–3 hrs." },
+    { key: "expLive", label: "Experiential — live client", min: 2, max: 6, t: tiers(isLiveClient) },
+    { key: "expTotal", label: "Experiential — total", min: 6, t: tiers(c => isLiveClient(c) || isSimulation(c)), note: "Live client + simulation ≥ 6 hrs." }
+  ];
+
+  // Non-course requirements
+  const satisfied = [
+    { label: "ULWR", via: REQUIREMENTS.ulwr.via },
+    { label: "Public service (30 hrs)", via: REQUIREMENTS.publicService.via }
+  ];
+
+  // Pace math: remaining hours over remaining regular (non-summer) semesters
+  const secured = total.completed + total.inProgress;
+  const curIdx = semIdx(settings.currentSemester);
+  const gradIdx = semIdx(settings.targetGrad);
+  const remainingRegular = SEMESTER_ORDER.filter((s, i) => i > curIdx && i <= gradIdx && !isSummer(s));
+  const summerPlannedHrs = hoursOf(planned.filter(c => isSummer(c.semester)));
+  const remainingHrs = Math.max(0, REQUIREMENTS.totalHours - secured);
+  const pace = remainingRegular.length ? (remainingHrs - summerPlannedHrs) / remainingRegular.length : 0;
+
+  // Limits (projected = completed + in progress + placed plans)
+  const all = completed.concat(inProg, planned);
+  const limitVals = {
+    restricted: hoursOf(all.filter(isRestricted)),
+    online: hoursOf(all.filter(c => c.online)),
+    independentStudy: hoursOf(all.filter(c => c.independent_study)),
+    journal: hoursOf(all.filter(c => c.journal_credit))
+  };
+  const limits = [
+    { label: "Combined restricted hrs (non-law / live client / moot court / ind. study / journal)", val: limitVals.restricted, cap: REQUIREMENTS.limits.combinedRestricted },
+    { label: "Online hrs", val: limitVals.online, cap: REQUIREMENTS.limits.online },
+    { label: "Independent study hrs", val: limitVals.independentStudy, cap: REQUIREMENTS.limits.independentStudy },
+    { label: "Journal credit hrs", val: limitVals.journal, cap: REQUIREMENTS.limits.journal }
+  ];
+
+  // Gaps: what the current placed plan still misses by target grad
+  const gaps = [];
+  const shortfall = Math.max(0, REQUIREMENTS.totalHours - projTotal(total));
+  if (shortfall > 0) gaps.push(`${shortfall} more earned hrs needed to reach 90.`);
+  for (const b of buckets.slice(1)) {
+    const proj = projTotal(b.t);
+    if (proj < b.min) gaps.push(`${b.label}: ${b.min - proj} more hr${b.min - proj === 1 ? "" : "s"} needed (projected ${proj} of ${b.min}).`);
+  }
+  const lcProj = projTotal(tiers(isLiveClient));
+  if (lcProj > REQUIREMENTS.experiential.liveClientMax)
+    gaps.push(`Live client hrs over the 6-hr cap (${lcProj}) — extra hrs don't count as experiential.`);
+
+  const onPace = gaps.length === 0;
+  return { buckets, satisfied, limits, gaps, onPace, secured, projected: projTotal(total),
+           earned: total.completed, remainingHrs, remainingRegular, pace, summerPlannedHrs };
+}
+
+/* =====================================================================
+   RENDER — shared helpers
+   ===================================================================== */
+const $ = sel => document.querySelector(sel);
+const el = (tag, cls, html) => {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (html !== undefined) n.innerHTML = html;
+  return n;
+};
+const esc = s => String(s).replace(/[&<>"]/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
+const fmtHrs = n => (Math.round(n * 10) / 10).toString();
+
+/* ---- icon set — Lucide-style inline SVGs, no emoji in UI chrome (see CLAUDE.md) ---- */
+const svgIcon = paths => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+const ICONS = {
+  logo: svgIcon('<path d="M12 3v18M5 8l-3 6a4 4 0 0 0 8 0zM19 8l-3 6a4 4 0 0 0 8 0zM5 8h14M9 3h6"/>'),
+  check: svgIcon('<polyline points="20 6 9 17 4 12"/>'),
+  checkCircle: svgIcon('<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>'),
+  alertTriangle: svgIcon('<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'),
+  xCircle: svgIcon('<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'),
+  x: svgIcon('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'),
+  info: svgIcon('<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'),
+  refresh: svgIcon('<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>'),
+  undo: svgIcon('<polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>'),
+  externalLink: svgIcon('<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>'),
+  chevronRight: svgIcon('<polyline points="9 18 15 12 9 6"/>')
+};
+const statusDot = level => `<span class="status-dot ${level}"></span>`;
+
+function meterRow(b) {
+  const proj = b.t.completed + b.t.inProgress + b.t.planned;
+  const denom = Math.max(b.min, proj);
+  const row = el("div", "meter-row");
+  const done = b.t.completed >= b.min;
+  const head = el("div", "meter-head");
+  head.append(el("span", "req-name", esc(b.label)));
+  const bits = [];
+  if (b.t.completed) bits.push(`${fmtHrs(b.t.completed)} done`);
+  if (b.t.inProgress) bits.push(`${fmtHrs(b.t.inProgress)} in progress`);
+  if (b.t.planned) bits.push(`${fmtHrs(b.t.planned)} planned`);
+  head.append(el("span", done ? "meter-done" : "req-num",
+    done ? ICONS.check + " complete" : `${bits.join(" · ") || "0"} — need ${b.min}`));
+  row.append(head);
+  const meter = el("div", "meter");
+  meter.setAttribute("role", "img");
+  meter.setAttribute("aria-label", `${b.label}: ${fmtHrs(proj)} of ${b.min} hours projected`);
+  for (const [cls, v] of [["completed", b.t.completed], ["inprogress", b.t.inProgress], ["planned", b.t.planned]]) {
+    if (v > 0) {
+      const seg = el("div", "seg " + cls);
+      seg.style.width = (v / denom * 100) + "%";
+      meter.append(seg);
+    }
+  }
+  row.append(meter);
+  if (b.note) row.append(el("div", "meter-note", esc(b.note)));
+  return row;
+}
+
+function warnItem(level, text) {
+  const icons = { good: ICONS.checkCircle, warning: ICONS.alertTriangle, critical: ICONS.xCircle, info: ICONS.info };
+  const li = el("li", "lvl-" + level);
+  li.append(el("span", "warn-icon", icons[level] || ICONS.info), el("span", null, text));
+  return li;
+}
+
+/* =====================================================================
+   DEGREE AUDIT VIEW
+   ===================================================================== */
+function renderAudit() {
+  const a = computeAudit(data.courses, data.settings);
+
+  // Stat tiles
+  const tiles = $("#audit-tiles");
+  tiles.innerHTML = "";
+  const tile = (label, value, sub, cls) => {
+    const t = el("div", "tile" + (cls ? " " + cls : ""));
+    t.append(el("div", "label", label), el("div", "value", value));
+    if (sub) t.append(el("div", "sub", sub));
+    tiles.append(t);
+  };
+  tile("Earned hours", `${fmtHrs(a.earned)}<span style="font-size:0.9rem;color:var(--muted)"> / 90</span>`);
+  tile("After this semester", fmtHrs(a.secured), `if ${data.settings.currentSemester} passes`);
+  tile("Required pace", `${fmtHrs(a.pace)}<span style="font-size:0.9rem;color:var(--muted)"> hrs/sem</span>`,
+    `${fmtHrs(a.remainingHrs)} hrs over ${a.remainingRegular.length} semesters` + (a.summerPlannedHrs ? ` (+${fmtHrs(a.summerPlannedHrs)} summer)` : ""));
+  tile("May 2028 verdict", a.onPace ? "On pace" : "Gaps",
+    a.onPace ? "current plan closes every requirement" : `${a.gaps.length} item${a.gaps.length === 1 ? "" : "s"} unresolved`,
+    a.onPace ? "verdict-good" : "verdict-bad");
+
+  // Meters
+  const meters = $("#audit-meters");
+  meters.innerHTML = "";
+  a.buckets.forEach(b => meters.append(meterRow(b)));
+  for (const s of a.satisfied) {
+    const row = el("div", "meter-row");
+    const head = el("div", "meter-head");
+    head.append(el("span", "req-name", esc(s.label)), el("span", "meter-done", ICONS.check + " satisfied — " + esc(s.via)));
+    row.append(head);
+    meters.append(row);
+  }
+
+  // Limits / warnings
+  const warns = $("#audit-warnings");
+  warns.innerHTML = "";
+  for (const l of a.limits) {
+    const pct = l.cap ? l.val / l.cap : 0;
+    const level = l.val > l.cap ? "critical" : pct >= 0.8 ? "warning" : "good";
+    warns.append(warnItem(level, `${l.label}: ${fmtHrs(l.val)} of ${l.cap} cap`));
+  }
+  warns.append(warnItem("info", "Moot court hours never count as experiential credit."));
+
+  // Gaps
+  const gapsEl = $("#audit-gaps");
+  gapsEl.innerHTML = "";
+  if (a.gaps.length === 0) {
+    gapsEl.append(warnItem("good", "Nothing missing — the placed plan covers every bucket and reaches 90 hrs."));
+  } else {
+    a.gaps.forEach(g => gapsEl.append(warnItem("warning", g)));
+  }
+}
+
+/* =====================================================================
+   SEMESTER PLANNER VIEW
+   ===================================================================== */
+let selectedCourseId = null;   // tap-to-assign selection (course id or catalog token)
+
+function plannerSemesters() {
+  const curIdx = semIdx(data.settings.currentSemester);
+  const gradIdx = semIdx(data.settings.targetGrad);
+  return SEMESTER_ORDER.filter((s, i) => i <= gradIdx || hasCoursesIn(s))
+    .map(s => ({
+      name: s,
+      locked: semIdx(s) < curIdx,
+      current: s === data.settings.currentSemester,
+      summer: isSummer(s)
+    }))
+    .filter(s => !s.summer || semIdx(s.name) > curIdx); // past summers hidden unless used
+}
+const hasCoursesIn = s => data.courses.some(c => c.semester === s && c.status !== "dropped");
+
+function courseCard(c, opts = {}) {
+  const card = el("div", "course-card" + (opts.locked ? " locked-card" : "") + (selectedCourseId === c.id ? " selected" : ""));
+  const top = el("div", "cc-top");
+  top.append(el("span", "cc-name", esc(c.name)), el("span", "cc-hrs", `${c.hours} hr${c.hours === 1 ? "" : "s"}`));
+  card.append(top);
+  const chips = el("div", "chips");
+  (c.buckets || []).forEach(b => chips.append(el("span", "chip" + (b === "core" ? " b-core" : ""),
+    esc({ "1L": "1L", core: "core", professional_responsibility: "PR", perspective: "perspective",
+          experiential_live_client: "live client", experiential_simulation: "simulation" }[b] || b))));
+  if (c.online) chips.append(el("span", "chip", "online"));
+  if (c.pass_fail) chips.append(el("span", "chip", "pass/fail"));
+  if (c.journal_credit) chips.append(el("span", "chip", "journal"));
+  if (c.grade) chips.append(el("span", "chip", esc(c.grade)));
+  if (chips.children.length) card.append(chips);
+
+  if (!opts.locked) {
+    card.draggable = true;
+    card.addEventListener("dragstart", e => {
+      e.dataTransfer.setData("text/plain", "course:" + c.id);
+      e.dataTransfer.effectAllowed = "move";
+    });
+    card.addEventListener("click", e => {
+      if (e.target.tagName === "BUTTON") return;
+      selectedCourseId = selectedCourseId === c.id ? null : c.id;
+      document.body.classList.toggle("selecting", selectedCourseId !== null);
+      renderPlanner();
+    });
+  }
+  const actions = el("div", "cc-actions");
+  if (opts.droppable) {
+    const btn = el("button", "danger", "Drop");
+    btn.addEventListener("click", () => {
+      if (!confirm(`Drop ${c.name} this semester? It moves back to the catalog to retake later.`)) return;
+      c.status = "planned"; c.semester = null; delete c.grade;
+      persist(); renderAll();
+    });
+    actions.append(btn);
+  }
+  if (opts.removable) {
+    const btn = el("button", null, ICONS.undo + " unschedule");
+    btn.addEventListener("click", () => { c.semester = null; persist(); renderAll(); });
+    actions.append(btn);
+  }
+  if (actions.children.length) card.append(actions);
+  return card;
+}
+
+function placeCourse(token, semester) {
+  if (token.startsWith("course:")) {
+    const c = data.courses.find(x => x.id === Number(token.slice(7)));
+    if (c && c.status === "planned") c.semester = semester;
+  } else if (token.startsWith("catalog:")) {
+    const spec = JSON.parse(token.slice(8));
+    data.courses.push({ id: nextId(), name: spec.name, hours: spec.hours, semester,
+      status: "planned", buckets: spec.buckets || [],
+      journal_credit: spec.journal_credit || undefined,
+      live_client: (spec.buckets || []).includes("experiential_live_client") || undefined });
+  }
+  selectedCourseId = null;
+  document.body.classList.remove("selecting");
+  persist(); renderAll();
+}
+
+function makeDropzone(node, semester) {
+  node.addEventListener("dragover", e => { e.preventDefault(); node.classList.add("dragover"); });
+  node.addEventListener("dragleave", () => node.classList.remove("dragover"));
+  node.addEventListener("drop", e => {
+    e.preventDefault(); node.classList.remove("dragover");
+    const token = e.dataTransfer.getData("text/plain");
+    if (token) placeCourse(token, semester);
+  });
+}
+
+function renderPlanner() {
+  const a = computeAudit(data.courses, data.settings);
+  $("#pace-banner").innerHTML =
+    `<strong>${a.onPace ? ICONS.checkCircle + " On pace for May 2028" : ICONS.alertTriangle + " Not yet — " + a.gaps.length + " gap" + (a.gaps.length === 1 ? "" : "s")}</strong>
+     &nbsp;·&nbsp; ${fmtHrs(a.remainingHrs)} hrs still needed after this semester → <strong>${fmtHrs(a.pace)} hrs/semester</strong>
+     across ${a.remainingRegular.map(esc).join(", ")}${a.summerPlannedHrs ? ` (summer relieves ${fmtHrs(a.summerPlannedHrs)} hrs)` : ""}.
+     ${a.gaps.length ? '<span style="color:var(--ink-2)">Missing: ' + a.gaps.map(esc).join(" ") + "</span>" : ""}`;
+
+  const cols = $("#planner-columns");
+  cols.innerHTML = "";
+  for (const sem of plannerSemesters()) {
+    const col = el("div", "sem-col" + (sem.locked || sem.current ? " locked" : "") + (sem.summer ? " summer" : ""));
+    const inSem = data.courses.filter(c => c.semester === sem.name && c.status !== "dropped");
+    const hrs = hoursOf(inSem);
+    const h = el("h3");
+    const tag = sem.locked ? "done" : sem.current ? "now" : sem.summer ? "optional" : "";
+    h.append(el("span", null, esc(sem.name) + (tag ? ` <span class="sem-tag">${tag}</span>` : "")));
+    const hrsSpan = el("span", "sem-hours", fmtHrs(hrs) + " hrs");
+    if (!sem.locked && !sem.current && !sem.summer && inSem.length) {
+      if (hrs > data.settings.maxSemesterHours) hrsSpan.classList.add("over");
+      else if (hrs < data.settings.minSemesterHours) hrsSpan.classList.add("warn");
+    }
+    if (!sem.summer || inSem.length) h.append(hrsSpan);
+    col.append(h);
+
+    inSem.sort((x, y) => y.hours - x.hours).forEach(c => {
+      col.append(courseCard(c, {
+        locked: sem.locked || (sem.current && c.status !== "planned") ,
+        droppable: sem.current && c.status === "in_progress",
+        removable: !sem.locked && !sem.current && c.status === "planned"
+      }));
+    });
+
+    if (!sem.locked && !sem.current) {
+      const place = el("button", "place-btn", "＋ place here");
+      place.addEventListener("click", () => {
+        if (selectedCourseId !== null) placeCourse(
+          typeof selectedCourseId === "string" ? selectedCourseId : "course:" + selectedCourseId, sem.name);
+      });
+      col.append(place);
+      makeDropzone(col, sem.name);
+    }
+    cols.append(col);
+  }
+
+  renderCatalog();
+  renderScenarios();
+}
+
+function renderCatalog() {
+  const box = $("#catalog-content");
+  box.innerHTML = "";
+
+  // Unscheduled planned courses (incl. anything dropped from Fall 2026)
+  const unscheduled = data.courses.filter(c => c.status === "planned" && !c.semester);
+  if (unscheduled.length) {
+    box.append(el("h3", null, "Unscheduled — needs a semester"));
+    unscheduled.forEach(c => box.append(courseCard(c, {})));
+  }
+
+  // Core menu not yet on the transcript/plan
+  const names = new Set(data.courses.filter(c => c.status !== "dropped").map(c => c.name));
+  box.append(el("h3", null, "Core menu (pick to reach 18 hrs)"));
+  REQUIREMENTS.core.menu
+    .filter(m => !names.has(m.name))
+    .forEach(m => box.append(catalogCard({ name: m.name, hours: m.hours, buckets: ["core"] })));
+
+  box.append(el("h3", null, "Slots"));
+  CATALOG_TEMPLATES
+    .filter(t => t.repeatable || !names.has(t.name))
+    .forEach(t => box.append(catalogCard({ name: t.name, hours: t.hours, buckets: t.buckets, journal_credit: t.journal_credit })));
+}
+
+function catalogCard(spec) {
+  const token = "catalog:" + JSON.stringify(spec);
+  const card = el("div", "course-card" + (selectedCourseId === token ? " selected" : ""));
+  const top = el("div", "cc-top");
+  top.append(el("span", "cc-name", esc(spec.name)), el("span", "cc-hrs", `${spec.hours} hrs`));
+  card.append(top);
+  if (spec.buckets && spec.buckets.length) {
+    const chips = el("div", "chips");
+    spec.buckets.forEach(b => chips.append(el("span", "chip" + (b === "core" ? " b-core" : ""),
+      esc({ core: "core", perspective: "perspective", experiential_simulation: "simulation", experiential_live_client: "live client" }[b] || b))));
+    card.append(chips);
+  }
+  card.draggable = true;
+  card.addEventListener("dragstart", e => {
+    e.dataTransfer.setData("text/plain", token);
+    e.dataTransfer.effectAllowed = "copy";
+  });
+  card.addEventListener("click", () => {
+    selectedCourseId = selectedCourseId === token ? null : token;
+    document.body.classList.toggle("selecting", selectedCourseId !== null);
+    renderPlanner();
+  });
+  return card;
+}
+
+/* ---- custom course into catalog (goes straight to unscheduled) ---- */
+$("#cat-add-btn").addEventListener("click", () => {
+  const name = $("#cat-name").value.trim();
+  const hours = Number($("#cat-hours").value);
+  if (!name || !hours) { alert("Name and hours required."); return; }
+  const bucket = $("#cat-bucket").value;
+  data.courses.push({ id: nextId(), name, hours, semester: null, status: "planned",
+    buckets: bucket ? [bucket] : [],
+    live_client: bucket === "experiential_live_client" || undefined });
+  $("#cat-name").value = ""; $("#cat-hours").value = "";
+  persist(); renderAll();
+});
+
+/* =====================================================================
+   SCENARIOS — dinner-planner Saved Menus pattern (_savedPlans in settings)
+   Snapshot = every non-completed course (drop decisions + placements).
+   ===================================================================== */
+function snapshotPlan() {
+  return JSON.parse(JSON.stringify(data.courses.filter(c => c.status !== "completed")));
+}
+function applyPlan(snapshot) {
+  data.courses = data.courses.filter(c => c.status === "completed").concat(JSON.parse(JSON.stringify(snapshot)));
+}
+function renderScenarios() {
+  const sel = $("#scenario-list");
+  const cur = sel.value;
+  sel.innerHTML = "";
+  for (const p of data.settings._savedPlans) {
+    const o = document.createElement("option");
+    o.value = p.name; o.textContent = p.name;
+    sel.append(o);
+  }
+  if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+}
+$("#scenario-save").addEventListener("click", () => {
+  const name = $("#scenario-name").value.trim();
+  if (!name) { alert("Give the plan a name first."); return; }
+  const plans = data.settings._savedPlans;
+  const existing = plans.find(p => p.name === name);
+  const entry = { name, savedAt: new Date().toISOString(), courses: snapshotPlan() };
+  if (existing) { if (!confirm(`Overwrite "${name}"?`)) return; Object.assign(existing, entry); }
+  else plans.push(entry);
+  $("#scenario-name").value = "";
+  persist(); renderScenarios();
+});
+$("#scenario-load").addEventListener("click", () => {
+  const p = data.settings._savedPlans.find(x => x.name === $("#scenario-list").value);
+  if (!p) return;
+  if (!confirm(`Load "${p.name}"? Current unsaved placements will be replaced.`)) return;
+  applyPlan(p.courses); persist(); renderAll();
+});
+$("#scenario-dup").addEventListener("click", () => {
+  const p = data.settings._savedPlans.find(x => x.name === $("#scenario-list").value);
+  if (!p) return;
+  const name = prompt("Name for the copy:", p.name + " (copy)");
+  if (!name) return;
+  data.settings._savedPlans.push({ name, savedAt: new Date().toISOString(), courses: JSON.parse(JSON.stringify(p.courses)) });
+  persist(); renderScenarios();
+});
+$("#scenario-del").addEventListener("click", () => {
+  const name = $("#scenario-list").value;
+  if (!name || !confirm(`Delete scenario "${name}"?`)) return;
+  data.settings._savedPlans = data.settings._savedPlans.filter(p => p.name !== name);
+  persist(); renderScenarios();
+});
+$("#scenario-compare").addEventListener("click", () => {
+  const plans = data.settings._savedPlans;
+  if (plans.length < 2) { alert("Save at least two scenarios to compare."); return; }
+  const names = plans.map(p => p.name).join(", ");
+  const aName = prompt(`Compare which two? Saved: ${names}\n\nFirst scenario:`, plans[0].name);
+  if (!aName) return;
+  const bName = prompt("Second scenario:", plans.find(p => p.name !== aName)?.name || plans[1].name);
+  if (!bName) return;
+  const pa = plans.find(p => p.name === aName), pb = plans.find(p => p.name === bName);
+  if (!pa || !pb) { alert("Scenario not found — check the name."); return; }
+  renderCompare(pa, pb);
+});
+function auditOfPlan(plan) {
+  const courses = data.courses.filter(c => c.status === "completed").concat(plan.courses);
+  return computeAudit(courses, data.settings);
+}
+function renderCompare(pa, pb) {
+  const area = $("#compare-area");
+  const col = (p) => {
+    const a = auditOfPlan(p);
+    const rows = a.buckets.map(b => {
+      const proj = b.t.completed + b.t.inProgress + b.t.planned;
+      return `<tr><td>${esc(b.label)}</td><td class="num">${fmtHrs(proj)} / ${b.min}${proj >= b.min ? " " + ICONS.check : ""}</td></tr>`;
+    }).join("");
+    return `<div class="card"><h3>${esc(p.name)}</h3>
+      <p style="font-size:0.8rem;margin-bottom:8px;color:${a.onPace ? "var(--good-text)" : "var(--critical)"};font-weight:600">
+        ${a.onPace ? ICONS.checkCircle + " On pace for May 2028" : ICONS.xCircle + " " + a.gaps.length + " gap" + (a.gaps.length === 1 ? "" : "s")}
+        · ${fmtHrs(a.projected)} projected hrs · pace ${fmtHrs(a.pace)}/sem</p>
+      <table>${rows}</table>
+      ${a.gaps.length ? `<p style="font-size:0.72rem;color:var(--ink-2);margin-top:6px">${a.gaps.map(esc).join("<br>")}</p>` : ""}
+    </div>`;
+  };
+  area.innerHTML = `<div class="compare-grid">${col(pa)}${col(pb)}</div>
+    <p style="text-align:right;margin-top:6px"><button class="ghost" onclick="document.getElementById('compare-area').innerHTML=''">Close compare</button></p>`;
+}
+
+/* =====================================================================
+   COURSES VIEW
+   ===================================================================== */
+function renderCourses() {
+  const list = $("#courses-list");
+  list.innerHTML = "";
+  const groups = new Map();
+  for (const c of data.courses) {
+    const key = c.semester || (c.status === "dropped" ? "Dropped" : "Unscheduled");
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(c);
+  }
+  const keys = [...groups.keys()].sort((a, b) => {
+    const ia = semIdx(a), ib = semIdx(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1; if (ib === -1) return -1;
+    return ia - ib;
+  });
+  for (const key of keys) {
+    const grp = el("div", "sem-group");
+    const items = groups.get(key);
+    grp.append(el("h3", null, `${esc(key)} — ${fmtHrs(hoursOf(items.filter(c => c.status !== "dropped")))} hrs`));
+    for (const c of items) grp.append(courseRow(c));
+    list.append(grp);
+  }
+}
+function courseRow(c) {
+  const locked = c.status === "completed";
+  const row = el("div", "course-row");
+  row.append(el("div", null, `<strong>${esc(c.name)}</strong>${c.code ? ` <span style="color:var(--muted);font-size:0.72rem">${esc(c.code)}</span>` : ""}`));
+  row.append(el("div", "hrs", fmtHrs(c.hours) + (Number(c.hours) === 1 ? " hr" : " hrs")));
+
+  const statusSel = document.createElement("select");
+  for (const s of ["planned", "in_progress", "completed", "dropped"]) {
+    const o = document.createElement("option");
+    o.value = s; o.textContent = s.replace("_", " ");
+    if (c.status === s) o.selected = true;
+    statusSel.append(o);
+  }
+  statusSel.disabled = locked;
+  statusSel.addEventListener("change", () => {
+    c.status = statusSel.value;
+    // a course re-planned out of a past/current semester needs a new home
+    if (c.status === "planned" && c.semester && semIdx(c.semester) <= semIdx(data.settings.currentSemester)) c.semester = null;
+    persist(); renderAll();
+  });
+  const stCell = el("div"); stCell.append(statusSel); row.append(stCell);
+
+  const gradeCell = el("div", "grade-cell");
+  const grade = document.createElement("input");
+  grade.type = "text"; grade.placeholder = "grade"; grade.value = c.grade || "";
+  grade.disabled = locked;
+  grade.addEventListener("change", () => { c.grade = grade.value.trim() || undefined; persist(); });
+  gradeCell.append(grade); row.append(gradeCell);
+
+  const chips = el("div", "chips");
+  (c.buckets || []).forEach(b => chips.append(el("span", "chip", esc(b))));
+  if (c.online) chips.append(el("span", "chip", "online"));
+  if (c.pass_fail) chips.append(el("span", "chip", "pass/fail"));
+  if (c.journal_credit) chips.append(el("span", "chip", "journal"));
+  if (isLiveClient(c)) chips.append(el("span", "chip", "live client"));
+  row.append(chips);
+
+  const del = el("div", "row-del");
+  if (!locked) {
+    const btn = el("button", null, "delete");
+    btn.addEventListener("click", () => {
+      if (!confirm(`Delete ${c.name} entirely? (Use "dropped" status to keep the record.)`)) return;
+      data.courses = data.courses.filter(x => x.id !== c.id);
+      persist(); renderAll();
+    });
+    del.append(btn);
+  }
+  row.append(del);
+  return row;
+}
+$("#add-course-btn").addEventListener("click", () => {
+  const name = $("#add-name").value.trim();
+  const hours = Number($("#add-hours").value);
+  if (!name || !hours) { alert("Name and hours required."); return; }
+  const bucket = $("#add-bucket").value;
+  const semester = $("#add-semester").value || null;
+  const status = semester && semIdx(semester) <= semIdx(data.settings.currentSemester)
+    ? (semester === data.settings.currentSemester ? "in_progress" : "completed") : "planned";
+  data.courses.push({
+    id: nextId(), name, hours, semester, status,
+    buckets: bucket ? [bucket] : [],
+    online: $("#add-online").checked || undefined,
+    pass_fail: $("#add-passfail").checked || undefined,
+    live_client: bucket === "experiential_live_client" || undefined
+  });
+  $("#add-name").value = ""; $("#add-hours").value = "";
+  persist(); renderAll();
+});
+
+/* =====================================================================
+   STUDY PLANNER — availability grid, outline tracker, finals-mode generator
+   ===================================================================== */
+const STUDY_SLOTS = [
+  { key: "morning", label: "Morning", start: 9, end: 12 },
+  { key: "afternoon", label: "Afternoon", start: 13, end: 17 },
+  { key: "evening", label: "Evening", start: 18, end: 21 }
+];
+const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const dowKey = date => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][date.getDay()];
+const isoDay = date => date.toLocaleDateString("sv");
+const OUTLINE_STATES = { not_started: "not started", in_progress: "in progress", exam_ready: "exam-ready" };
+
+const studySettings = () => data.settings.study || (data.settings.study = { availability: {}, startDate: "", plan: [] });
+const studyCourses = () => data.courses.filter(c => c.semester === data.settings.currentSemester && c.status === "in_progress");
+const studyIncluded = c => c.study_include !== undefined ? c.study_include : !(c.pass_fail || c.journal_credit);
+
+function renderStudy() {
+  const st = studySettings();
+
+  // availability grid
+  const grid = $("#avail-grid");
+  grid.innerHTML = "";
+  grid.append(el("span"));
+  WEEK_DAYS.forEach(d => grid.append(el("span", "ag-head", d)));
+  for (const slot of STUDY_SLOTS) {
+    grid.append(el("span", "ag-slot", `${slot.label} <span style="color:var(--muted)">&nbsp;${slot.start}–${slot.end % 12 || 12}</span>`));
+    for (const d of WEEK_DAYS) {
+      const on = !!st.availability?.[d]?.[slot.key];
+      const cell = el("div", "avail-cell" + (on ? " on" : ""), on ? ICONS.check : "·");
+      cell.addEventListener("click", () => {
+        st.availability[d] = st.availability[d] || {};
+        st.availability[d][slot.key] = !on;
+        persist(); renderStudy();
+      });
+      grid.append(cell);
+    }
+  }
+
+  // course table: exam date, confidence, include, outline tracker
+  const box = $("#study-courses");
+  box.innerHTML = "";
+  const head = el("div", "study-row study-head");
+  ["Course", "Exam date", "Confidence (shaky → solid)", "Include", "Outline", "Outline link"].forEach(h => head.append(el("span", null, h)));
+  box.append(head);
+  for (const c of studyCourses()) {
+    const row = el("div", "study-row");
+    row.append(el("span", null, `<strong>${esc(c.name)}</strong> <span style="color:var(--muted);font-size:0.7rem">${c.hours} hrs${c.pass_fail ? " · pass/fail" : ""}</span>`));
+
+    const exam = document.createElement("input");
+    exam.type = "date"; exam.value = c.exam_date || "";
+    exam.addEventListener("change", () => { c.exam_date = exam.value || undefined; persist(); });
+    const examCell = el("span"); examCell.append(exam); row.append(examCell);
+
+    const confCell = el("span");
+    const conf = document.createElement("input");
+    conf.type = "range"; conf.min = 1; conf.max = 5; conf.value = c.confidence || 3;
+    const confLab = el("div", "conf-label", ["", "very shaky", "shaky", "okay", "solid", "very solid"][c.confidence || 3]);
+    conf.addEventListener("input", () => { confLab.textContent = ["", "very shaky", "shaky", "okay", "solid", "very solid"][conf.value]; });
+    conf.addEventListener("change", () => { c.confidence = Number(conf.value); persist(); });
+    confCell.append(conf, confLab); row.append(confCell);
+
+    const incCell = el("span");
+    const inc = document.createElement("input");
+    inc.type = "checkbox"; inc.checked = studyIncluded(c);
+    inc.addEventListener("change", () => { c.study_include = inc.checked; persist(); });
+    incCell.append(inc); row.append(incCell);
+
+    const outCell = el("span");
+    const out = document.createElement("select");
+    for (const [v, label] of Object.entries(OUTLINE_STATES)) {
+      const o = document.createElement("option");
+      o.value = v; o.textContent = label;
+      if ((c.outline_status || "not_started") === v) o.selected = true;
+      out.append(o);
+    }
+    out.addEventListener("change", () => { c.outline_status = out.value; persist(); });
+    outCell.append(out); row.append(outCell);
+
+    const linkCell = el("span");
+    const link = document.createElement("input");
+    link.type = "url"; link.placeholder = "Drive / NotebookLM…"; link.value = c.outline_link || "";
+    link.addEventListener("change", () => { c.outline_link = link.value.trim() || undefined; persist(); });
+    linkCell.append(link);
+    if (c.outline_link) linkCell.append(el("span", null, `<a href="${esc(c.outline_link)}" target="_blank" rel="noopener" style="font-size:0.7rem;color:var(--accent)">open ${ICONS.externalLink}</a>`));
+    row.append(linkCell);
+    box.append(row);
+  }
+
+  $("#study-start").value = st.startDate || "";
+  renderPlanGrid();
+}
+
+/* ---- generator ---- */
+function availableBlocks(fromDate, toDate) {
+  const st = studySettings();
+  const blocks = [];
+  for (let d = new Date(fromDate + "T12:00:00"); isoDay(d) <= toDate; d.setDate(d.getDate() + 1)) {
+    for (const slot of STUDY_SLOTS) {
+      if (st.availability?.[dowKey(d)]?.[slot.key]) blocks.push({ date: isoDay(d), slot: slot.key });
+    }
+  }
+  return blocks;
+}
+async function fetchConflicts(fromDate, toDate) {
+  // timed events on active calendars block overlapping slots; needs a live token
+  if (!gToken) return null;
+  const toggles = data.settings.calendarToggles || {};
+  const active = gCalendars.filter(c => toggles[c.name]);
+  if (!active.length) return null;
+  const timeMin = new Date(fromDate + "T00:00:00").toISOString();
+  const timeMax = new Date(toDate + "T23:59:59").toISOString();
+  const conflicts = new Map();   // "date|slotKey" -> event summary
+  await Promise.all(active.map(async cal => {
+    try {
+      const j = await gfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?singleEvents=true&maxResults=500&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`);
+      for (const ev of j.items || []) {
+        if (!ev.start?.dateTime || !ev.end?.dateTime) continue;   // all-day events don't block slots
+        const s = new Date(ev.start.dateTime), e = new Date(ev.end.dateTime);
+        const day = isoDay(s);
+        for (const slot of STUDY_SLOTS) {
+          const slotStart = new Date(day + "T00:00:00"); slotStart.setHours(slot.start);
+          const slotEnd = new Date(day + "T00:00:00"); slotEnd.setHours(slot.end);
+          if (s < slotEnd && e > slotStart) conflicts.set(day + "|" + slot.key, ev.summary || "event");
+        }
+      }
+    } catch (e) { console.warn("conflict fetch failed for", cal.name, e); }
+  }));
+  return conflicts;
+}
+function sessionType(course, idx, total) {
+  const ready = course.outline_status === "exam_ready";
+  const frac = total > 1 ? idx / (total - 1) : 1;
+  if (ready) return frac < 0.4 ? "Outline review" : "Practice questions";
+  if (frac < 0.4) return "Outline building";
+  if (frac < 0.7) return "Outline review";
+  return "Practice questions";
+}
+const studyMsg = msg => { $("#study-conflict-note").textContent = msg; };
+async function buildPlan(fromDate, keepBlocks) {
+  const st = studySettings();
+  const courses = studyCourses().filter(c => studyIncluded(c) && c.exam_date);
+  if (!courses.length) { studyMsg("Set at least one exam date (and include the course) first."); return; }
+  const lastExam = courses.map(c => c.exam_date).sort().at(-1);
+  if (fromDate > lastExam) { studyMsg("Start date is after the last exam."); return; }
+
+  let blocks = availableBlocks(fromDate, lastExam);
+  if (!blocks.length) { studyMsg("No available blocks — turn some on in the availability grid."); return; }
+  const conflicts = await fetchConflicts(fromDate, lastExam);
+  if (conflicts) blocks = blocks.filter(b => !conflicts.has(b.date + "|" + b.slot));
+  $("#study-conflict-note").textContent = conflicts
+    ? `Conflicts avoided using your connected calendars (${conflicts.size} busy slot${conflicts.size === 1 ? "" : "s"} skipped).`
+    : "Tip: connect Google Calendar on the Agenda tab before generating and the plan will dodge class times automatically.";
+
+  // weight = credit hours × shakiness; assignment greedily balances toward
+  // weight share, leaning into a course as its exam approaches
+  const weights = new Map(courses.map(c => [c.id, c.hours * (6 - (c.confidence || 3))]));
+  const assigned = new Map(courses.map(c => [c.id, keepBlocks.filter(b => b.courseId === c.id).length]));
+  const newBlocks = [];
+  for (const b of blocks) {
+    const eligible = courses.filter(c => b.date < c.exam_date);
+    if (!eligible.length) continue;
+    let best = null, bestScore = -1;
+    for (const c of eligible) {
+      const days = Math.max(1, Math.round((new Date(c.exam_date) - new Date(b.date)) / 86400000));
+      const urgency = 1 + 4 / days;
+      const score = weights.get(c.id) * urgency / (assigned.get(c.id) + 1);
+      if (score > bestScore) { bestScore = score; best = c; }
+    }
+    assigned.set(best.id, assigned.get(best.id) + 1);
+    newBlocks.push({ id: b.date + "|" + b.slot, date: b.date, slot: b.slot, courseId: best.id, status: "todo" });
+  }
+  // session types per course, chronological
+  for (const c of courses) {
+    const mine = newBlocks.filter(b => b.courseId === c.id);
+    mine.forEach((b, i) => { b.type = sessionType(c, i + (assigned.get(c.id) - mine.length), assigned.get(c.id)); });
+  }
+  st.plan = [...keepBlocks, ...newBlocks].sort((a, b) => a.id.localeCompare(b.id));
+  persist();
+  renderPlanGrid();
+}
+function generatePlan() {
+  const st = studySettings();
+  st.startDate = $("#study-start").value;
+  if (!st.startDate) { studyMsg("Pick a start date first."); return; }
+  persist();
+  buildPlan(st.startDate, []);
+}
+function rebalancePlan() {
+  const st = studySettings();
+  if (!st.plan?.length) { studyMsg("Generate a plan first."); return; }
+  const from = [isoDay(new Date()), st.startDate || ""].sort().at(-1);   // later of today / plan start
+  const keep = st.plan.filter(b => b.date < from || b.status === "done");
+  buildPlan(from, keep);
+}
+function clearPlan() {
+  if (!confirm("Clear the generated plan?")) return;
+  studySettings().plan = [];
+  persist(); renderPlanGrid();
+}
+function renderPlanGrid() {
+  const st = studySettings();
+  const gridBox = $("#plan-grid");
+  const summary = $("#plan-summary");
+  gridBox.innerHTML = ""; summary.innerHTML = "";
+  const plan = st.plan || [];
+  if (!plan.length) {
+    gridBox.append(el("p", "placeholder-note", "No plan yet — set exam dates above, pick a start date, and hit Generate."));
+    return;
+  }
+  const courses = studyCourses();
+  const cname = id => courses.find(c => c.id === id)?.name || "?";
+  const ccolor = id => { const i = courses.findIndex(c => c.id === id); return calColor(i < 0 ? 0 : i); };
+
+  for (const c of courses.filter(c => plan.some(b => b.courseId === c.id))) {
+    const mine = plan.filter(b => b.courseId === c.id);
+    const done = mine.filter(b => b.status === "done").length;
+    summary.append(el("span", null, `<span class="ps-dot" style="background:${ccolor(c.id)}"></span>${esc(c.name)}: ${done}/${mine.length}` + (c.exam_date ? ` · exam ${fmtDate(c.exam_date)}` : "")));
+  }
+
+  // week rows, Monday-aligned
+  const first = new Date(plan[0].date + "T12:00:00");
+  const last = new Date(plan.at(-1).date + "T12:00:00");
+  const cur = new Date(first);
+  cur.setDate(cur.getDate() - ((cur.getDay() + 6) % 7));   // back to Monday
+  const todayKey = isoDay(new Date());
+  const slotLabel = k => STUDY_SLOTS.find(s => s.key === k)?.label || k;
+  while (cur <= last) {
+    const week = el("div", "plan-week");
+    for (let i = 0; i < 7; i++) {
+      const dayKey = isoDay(cur);
+      const cell = el("div", "plan-day" + (dayKey === todayKey ? " today-col" : ""));
+      cell.append(el("h4", null, cur.toLocaleDateString(undefined, { weekday: "short", month: "numeric", day: "numeric" })));
+      for (const b of plan.filter(p => p.date === dayKey)) {
+        const blk = el("div", "plan-block " + b.status);
+        blk.style.borderLeftColor = ccolor(b.courseId);
+        const cb = document.createElement("input");
+        cb.type = "checkbox"; cb.checked = b.status === "done";
+        cb.addEventListener("change", () => { b.status = cb.checked ? "done" : "todo"; persist(); renderPlanGrid(); });
+        blk.append(cb);
+        blk.append(el("span", "pb-label", `<b>${esc(cname(b.courseId))}</b>${esc(b.type || "")} <span class="pb-slot">· ${slotLabel(b.slot)}</span>`));
+        if (b.status === "todo") {
+          const skip = el("button", "pb-skip", "skip");
+          skip.title = "Skip — rebalance moves it forward";
+          skip.addEventListener("click", () => { b.status = "skipped"; persist(); renderPlanGrid(); });
+          blk.append(skip);
+        }
+        cell.append(blk);
+      }
+      week.append(cell);
+      cur.setDate(cur.getDate() + 1);
+    }
+    gridBox.append(week);
+  }
+}
+
+/* =====================================================================
+   NOTE-WRITING STAGE TRACKER — Volume 65 roadmap
+   ===================================================================== */
+const NOTE_STAGES = [
+  { month: "2026-07", label: "Topic exploration",        q: "What conversation do I want to join?" },
+  { month: "2026-08", label: "Scholarly conversation",   q: "Who's already in this conversation, and what's my angle?", cps: [{ label: "Topic selection essay", date: "2026-08-10" }] },
+  { month: "2026-09", label: "Prospectus",               q: "Can I state my thesis and research plan in two pages?",    cps: [{ label: "Research prospectus", date: "2026-09-06" }] },
+  { month: "2026-10", label: "Literature review",        q: "What gap does the scholarship leave open?",                cps: [{ label: "Lit review / gap analysis", date: "2026-10-18" }] },
+  { month: "2026-11", label: "Analytical framework",     q: "How exactly will I argue this?",                           cps: [{ label: "Analytical framework", date: "2026-11-24" }] },
+  { month: "2026-12", label: "Exams — rest & reflect",   q: "What needs rethinking when I return in January?" },
+  { month: "2027-01", label: "First draft",              q: "Can I write the argument all the way through?",            cps: [{ label: "Rough draft", date: "2027-01-03" }, { label: "Complete first draft", date: "2027-01-29" }] },
+  { month: "2027-02", label: "Revise",                   q: "Does every section earn its place?" },
+  { month: "2027-03", label: "Final note",               q: "Is it polished and citation-ready?",                       cps: [{ label: "Final note", date: "2027-03-05" }] }
+];
+const todayYM = () => new Date().toISOString().slice(0, 7);
+const fmtDate = iso => new Date(iso + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+const daysUntil = iso => Math.ceil((new Date(iso + "T23:59:59") - new Date()) / 86400000);
+
+function currentStageIdx() {
+  const ym = todayYM();
+  if (ym < NOTE_STAGES[0].month) return 0;
+  let idx = NOTE_STAGES.length - 1;
+  NOTE_STAGES.forEach((s, i) => { if (s.month <= ym) idx = i; });
+  return idx;
+}
+function nextCheckpoint() {
+  const today = new Date().toISOString().slice(0, 10);
+  return NOTE_STAGES.flatMap(s => s.cps || []).find(cp => cp.date >= today) || null;
+}
+
+function renderNotes() {
+  const cur = currentStageIdx();
+  const stepper = $("#stage-stepper");
+  stepper.innerHTML = "";
+  NOTE_STAGES.forEach((s, i) => {
+    const row = el("div", "stage" + (i < cur ? " past" : i === cur ? " current" : ""));
+    row.append(el("div", "stage-num", i < cur ? ICONS.check : String(i + 1)));
+    const body = el("div", "stage-body");
+    const monthName = new Date(s.month + "-15T12:00:00").toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    body.append(el("div", "stage-title", esc(s.label) + `<span class="stage-month">${monthName}</span>`));
+    body.append(el("div", "stage-q", "“" + esc(s.q) + "”"));
+    (s.cps || []).forEach(cp => {
+      const passed = daysUntil(cp.date) < 0;
+      const next = nextCheckpoint();
+      const isNext = next && next.date === cp.date && next.label === cp.label;
+      body.append(el("div", "stage-cp",
+        `<span class="${passed ? "cp-done" : isNext ? "cp-next" : ""}">${passed ? ICONS.check + " " : "<span class=\"cp-dot\"></span> "}${esc(cp.label)} — ${fmtDate(cp.date)}${isNext ? ` · in ${daysUntil(cp.date)} days` : ""}</span>`));
+    });
+    row.append(body);
+    stepper.append(row);
+  });
+
+  const cpList = $("#cp-list");
+  cpList.innerHTML = "";
+  const today = new Date().toISOString().slice(0, 10);
+  NOTE_STAGES.flatMap(s => s.cps || []).forEach(cp => {
+    cpList.append(warnItem(cp.date < today ? "good" : "info", `${cp.label} — ${fmtDate(cp.date)}`));
+  });
+
+  const stage = NOTE_STAGES[currentStageIdx()];
+  const next = nextCheckpoint();
+  $("#note-banner").innerHTML =
+    `<strong>Note stage — ${esc(stage.label)}</strong> · <em>“${esc(stage.q)}”</em>` +
+    (next ? ` &nbsp;·&nbsp; <strong>${daysUntil(next.date)} days</strong> until ${esc(next.label)} (${fmtDate(next.date)})` : "") +
+    ` &nbsp;<a style="font-size:0.78rem;color:var(--accent);cursor:pointer" onclick="showView('notes')">full roadmap ${ICONS.chevronRight}</a>`;
+}
+
+/* =====================================================================
+   GOOGLE CALENDAR — read-only, client-side (GIS token client)
+   ===================================================================== */
+const KNOWN_CALENDARS = ["Law School Schedule", "Online Law School Classes", "Law Review", "Assignments"];
+const CAL_COLORS_LIGHT = ["#2a78d6", "#1baf7a", "#eda100", "#008300", "#4a3aa7", "#e34948", "#e87ba4", "#eb6834"];
+const CAL_COLORS_DARK = ["#3987e5", "#199e70", "#c98500", "#008300", "#9085e9", "#e66767", "#d55181", "#d95926"];
+let gTokenClient = null, gToken = null, gCalendars = [], gEvents = null;
+
+const calColor = slot => (matchMedia("(prefers-color-scheme: dark)").matches ? CAL_COLORS_DARK : CAL_COLORS_LIGHT)[slot % 8];
+const setGcalStatus = msg => { $("#gcal-status").textContent = msg; };
+
+function initTokenClient() {
+  if (gTokenClient || !data.settings.googleClientId || !window.google?.accounts?.oauth2) return;
+  gTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: data.settings.googleClientId,
+    scope: "https://www.googleapis.com/auth/calendar.readonly",
+    callback: async resp => {
+      if (resp.error) { renderAgendaShell("Connection failed: " + resp.error); return; }
+      gToken = resp.access_token;
+      try { await refreshAgenda(); }
+      catch (e) { console.error(e); renderAgendaShell("Couldn't load calendars: " + e.message); }
+    }
+  });
+}
+function connectGoogle() {
+  const input = $("#gcal-client-id");
+  const typed = input ? input.value.trim() : "";
+  if (typed && typed !== data.settings.googleClientId) {
+    data.settings.googleClientId = typed;
+    gTokenClient = null;
+    persist();
+  }
+  if (!data.settings.googleClientId) { renderAgendaShell("Paste the OAuth client ID first."); return; }
+  initTokenClient();
+  if (!gTokenClient) { renderAgendaShell("Google sign-in script still loading — try again in a couple of seconds."); return; }
+  gTokenClient.requestAccessToken({ prompt: "" });
+}
+async function gfetch(url) {
+  const r = await fetch(url, { headers: { Authorization: "Bearer " + gToken } });
+  if (r.status === 401) { gToken = null; throw new Error("Google session expired — click Connect again."); }
+  if (!r.ok) throw new Error("Google API error " + r.status);
+  return r.json();
+}
+async function refreshAgenda() {
+  if (!gToken) { connectGoogle(); return; }
+  setGcalStatus("Loading calendars…");
+  $("#agenda-connected").style.display = "";
+  $("#gcal-setup").style.display = "none";
+  const list = await gfetch("https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=100");
+  gCalendars = (list.items || []).map(c => ({ id: c.id, name: c.summary || c.id }));
+  // Stable color slots: known calendars first in fixed order, then the rest alphabetically
+  const ordered = [
+    ...KNOWN_CALENDARS.filter(n => gCalendars.some(c => c.name === n)),
+    ...gCalendars.map(c => c.name).filter(n => !KNOWN_CALENDARS.includes(n)).sort()
+  ];
+  gCalendars.forEach(c => { c.slot = ordered.indexOf(c.name); });
+  const toggles = data.settings.calendarToggles || (data.settings.calendarToggles = {});
+  let changed = false;
+  gCalendars.forEach(c => { if (!(c.name in toggles)) { toggles[c.name] = KNOWN_CALENDARS.includes(c.name); changed = true; } });
+  if (changed) persist();
+
+  setGcalStatus("Loading events…");
+  const timeMin = new Date(); timeMin.setHours(0, 0, 0, 0);
+  const timeMax = new Date(timeMin.getTime() + 14 * 86400000);
+  const active = gCalendars.filter(c => toggles[c.name]);
+  const results = await Promise.all(active.map(async c => {
+    try {
+      const j = await gfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(c.id)}/events?singleEvents=true&orderBy=startTime&maxResults=100&timeMin=${timeMin.toISOString()}&timeMax=${timeMax.toISOString()}`);
+      return (j.items || []).map(ev => ({ cal: c, ev }));
+    } catch (e) { console.warn("events failed for", c.name, e); return []; }
+  }));
+  gEvents = results.flat();
+  setGcalStatus(`${gEvents.length} events from ${active.length} calendar${active.length === 1 ? "" : "s"}`);
+  renderCalToggles();
+  renderAgendaDays();
+}
+function renderCalToggles() {
+  const box = $("#cal-toggle-list");
+  box.innerHTML = "";
+  const toggles = data.settings.calendarToggles || {};
+  [...gCalendars].sort((a, b) => a.slot - b.slot).forEach(c => {
+    const lab = el("label", "cal-toggle");
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = !!toggles[c.name];
+    cb.addEventListener("change", () => { toggles[c.name] = cb.checked; persist(); refreshAgenda(); });
+    const dot = el("span", "evt-dot");
+    dot.style.background = calColor(c.slot);
+    lab.append(cb, dot, el("span", null, esc(c.name)));
+    box.append(lab);
+  });
+}
+function renderAgendaDays() {
+  const box = $("#agenda-days");
+  box.innerHTML = "";
+  if (!gEvents || !gEvents.length) {
+    box.append(el("p", "placeholder-note", "No events in the next 14 days on the selected calendars."));
+    return;
+  }
+  const byDay = new Map();
+  for (const { cal, ev } of gEvents) {
+    const key = ev.start?.dateTime ? ev.start.dateTime.slice(0, 10) : ev.start?.date;
+    if (!key) continue;
+    if (!byDay.has(key)) byDay.set(key, []);
+    byDay.get(key).push({ cal, ev });
+  }
+  const todayKey = new Date().toLocaleDateString("sv");   // YYYY-MM-DD local
+  [...byDay.keys()].sort().forEach(day => {
+    const grp = el("div", "day-group");
+    const d = new Date(day + "T12:00:00");
+    const label = d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+    grp.append(el("h3", null, day === todayKey ? `<span class="dow-today">Today</span> · ${label}` : label));
+    byDay.get(day)
+      .sort((a, b) => (a.ev.start?.dateTime || "0").localeCompare(b.ev.start?.dateTime || "0"))
+      .forEach(({ cal, ev }) => {
+        const row = el("div", "evt");
+        const t = ev.start?.dateTime
+          ? new Date(ev.start.dateTime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+          : "all day";
+        row.append(el("span", "evt-time", esc(t)));
+        const dot = el("span", "evt-dot");
+        dot.style.background = calColor(cal.slot);
+        row.append(dot);
+        row.append(el("span", "evt-title", esc(ev.summary || "(untitled)") + `<span class="evt-cal">${esc(cal.name)}</span>`));
+        grp.append(row);
+      });
+    box.append(grp);
+  });
+}
+function renderAgendaShell(statusMsg) {
+  const setup = $("#gcal-setup");
+  if (gToken) return; // connected view is managed by refreshAgenda
+  $("#agenda-connected").style.display = "none";
+  setup.style.display = "";
+  const cid = data.settings.googleClientId || "";
+  setup.innerHTML = cid ? `
+    <h2>Google Calendar</h2>
+    <p style="font-size:0.84rem;color:var(--ink-2);margin-bottom:10px">Classes, Law Review deadlines, and assignments merge here straight from Google Calendar — nothing to re-enter.</p>
+    <button class="primary" style="font:inherit;font-size:0.85rem;padding:8px 16px;border-radius:8px;cursor:pointer" onclick="connectGoogle()">Connect Google Calendar</button>
+    <p style="font-size:0.72rem;color:var(--muted);margin-top:8px">Read-only access · token stays in this tab · <a style="color:var(--accent);cursor:pointer" onclick="data.settings.googleClientId='';persist();renderAgendaShell()">use a different client ID</a></p>
+    <p style="font-size:0.76rem;color:var(--critical);margin-top:4px">${esc(statusMsg || "")}</p>` : `
+    <h2>Connect Google Calendar — one-time setup</h2>
+    <p style="font-size:0.84rem;color:var(--ink-2)">The app reads your calendars directly in the browser (read-only). It needs an OAuth client ID from your own Google Cloud account:</p>
+    <ol class="setup-steps">
+      <li>Go to <code>console.cloud.google.com</code> → create a project (name it anything, e.g. "Law School App").</li>
+      <li>APIs &amp; Services → Library → search <strong>Google Calendar API</strong> → Enable.</li>
+      <li><strong>Google Auth Platform</strong> → Get started: app name + your email → Audience: <strong>External</strong> → contact email → agree → Create.</li>
+      <li>Google Auth Platform → <strong>Audience</strong> → Test users → <strong>+ Add users</strong> → <code>brieespo@gmail.com</code>.</li>
+      <li>Google Auth Platform → <strong>Clients</strong> → + Create client → <strong>Web application</strong>. Under "Authorized JavaScript origins" add <code>https://brieespo.github.io</code>.</li>
+      <li>Copy the client ID (ends in <code>.apps.googleusercontent.com</code>) and paste it here:</li>
+    </ol>
+    <input type="text" id="gcal-client-id" placeholder="1234567890-xxxx.apps.googleusercontent.com">
+    <button class="primary" style="font:inherit;font-size:0.85rem;padding:8px 16px;border-radius:8px;cursor:pointer" onclick="connectGoogle()">Save &amp; Connect</button>
+    <p style="font-size:0.76rem;color:var(--critical);margin-top:6px">${esc(statusMsg || "")}</p>`;
+}
+
+/* =====================================================================
+   MILESTONES — backdated lead tasks + write-back to an app-owned calendar
+   ===================================================================== */
+const addDays = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return isoDay(d); };
+const taskDate = (m, t) => addDays(m.date, -t.days_before);
+const nextMsId = () => data.milestones.reduce((x, m) => Math.max(x, m.id), 0) + 1;
+
+function renderMilestones() {
+  const box = $("#ms-list");
+  box.innerHTML = "";
+  const today = isoDay(new Date());
+  const sorted = [...data.milestones].sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
+  for (const m of sorted) {
+    const card = el("div", "ms-card");
+    const head = el("div", "ms-head");
+    const done = m.status === "done";
+    head.append(el("span", "ms-name", (done ? ICONS.check + " " : "") + esc(m.name)));
+
+    const dateIn = document.createElement("input");
+    dateIn.type = "date"; dateIn.value = m.date || "";
+    dateIn.addEventListener("change", () => { m.date = dateIn.value || null; if (dateIn.value) m.tentative = false; persist(); renderMilestones(); });
+    head.append(dateIn);
+
+    if (m.tentative) head.append(el("span", "chip tentative", "confirm date"));
+    if (m.date && !done) {
+      const days = daysUntil(m.date);
+      head.append(el("span", "ms-count" + (days < 0 ? " overdue" : ""), days < 0 ? `${-days} days overdue` : `in ${days} days`));
+    }
+
+    const doneBtn = el("button", null, done ? "Reopen" : "Mark done");
+    doneBtn.style.cssText = "font:inherit;font-size:0.7rem;padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--ink-2);cursor:pointer;margin-left:auto";
+    doneBtn.addEventListener("click", () => { m.status = done ? "planned" : "done"; persist(); renderMilestones(); });
+    head.append(doneBtn);
+    const delBtn = el("button", null, "delete");
+    delBtn.style.cssText = "font:inherit;font-size:0.7rem;border:none;background:none;color:var(--muted);cursor:pointer";
+    delBtn.addEventListener("click", () => {
+      if (!confirm(`Delete milestone "${m.name}" and its lead tasks?`)) return;
+      data.milestones = data.milestones.filter(x => x.id !== m.id);
+      persist(); renderMilestones();
+    });
+    head.append(delBtn);
+    card.append(head);
+
+    if (m.notes) card.append(el("div", "ms-notes", esc(m.notes)));
+
+    for (const t of [...(m.lead_tasks || [])].sort((a, b) => b.days_before - a.days_before)) {
+      const d = m.date ? taskDate(m, t) : null;
+      const overdue = d && d < today && !t.done;
+      const row = el("div", "ms-task" + (t.done ? " done" : "") + (overdue ? " overdue" : ""));
+      const cb = document.createElement("input");
+      cb.type = "checkbox"; cb.checked = !!t.done;
+      cb.addEventListener("change", () => { t.done = cb.checked; persist(); renderMilestones(); });
+      row.append(cb);
+      row.append(el("span", "mt-date", d ? `${fmtDate(d)} (${t.days_before}d before)` : `${t.days_before}d before`));
+      row.append(el("span", "mt-label", esc(t.label)));
+      const rm = el("button", null, ICONS.x);
+      rm.addEventListener("click", () => { m.lead_tasks = m.lead_tasks.filter(x => x !== t); persist(); renderMilestones(); });
+      row.append(rm);
+      card.append(row);
+    }
+
+    const addRow = el("div", "ms-actions");
+    const labelIn = document.createElement("input");
+    labelIn.type = "text"; labelIn.placeholder = "New lead task"; labelIn.style.width = "220px";
+    const daysIn = document.createElement("input");
+    daysIn.type = "number"; daysIn.placeholder = "days before"; daysIn.min = 0; daysIn.style.width = "90px";
+    const addBtn = el("button", null, "Add task");
+    addBtn.addEventListener("click", () => {
+      if (!labelIn.value.trim() || daysIn.value === "") return;
+      m.lead_tasks = m.lead_tasks || [];
+      m.lead_tasks.push({ label: labelIn.value.trim(), days_before: Number(daysIn.value), done: false });
+      persist(); renderMilestones();
+    });
+    addRow.append(labelIn, daysIn, addBtn);
+    card.append(addRow);
+    box.append(card);
+  }
+}
+function addMilestone() {
+  const name = $("#ms-new-name").value.trim();
+  const date = $("#ms-new-date").value;
+  if (!name) return;
+  data.milestones.push({ id: nextMsId(), name, date: date || null, tentative: false, status: "planned", notes: "", lead_tasks: [] });
+  $("#ms-new-name").value = ""; $("#ms-new-date").value = "";
+  persist(); renderMilestones();
+}
+
+/* ---- write-back: app-owned calendar, least-privilege scope ---- */
+let gWriteToken = null;
+function requestWriteToken() {
+  return new Promise((resolve, reject) => {
+    if (!data.settings.googleClientId) { reject(new Error("set up Google Calendar on the Agenda tab first.")); return; }
+    if (!window.google?.accounts?.oauth2) { reject(new Error("Google sign-in script still loading — try again.")); return; }
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: data.settings.googleClientId,
+      // app.created: can only create & manage calendars this app made — never her curated ones
+      scope: "https://www.googleapis.com/auth/calendar.app.created",
+      callback: r => r.error ? reject(new Error(r.error)) : resolve(gWriteToken = r.access_token)
+    });
+    client.requestAccessToken({ prompt: "" });
+  });
+}
+async function gwfetch(url, opts = {}) {
+  const r = await fetch(url, {
+    method: opts.method || "GET",
+    headers: { Authorization: "Bearer " + gWriteToken, ...(opts.body ? { "Content-Type": "application/json" } : {}) },
+    body: opts.body ? JSON.stringify(opts.body) : undefined
+  });
+  if (r.status === 401) { gWriteToken = null; throw new Error("Google session expired — click Sync again."); }
+  if (!r.ok && r.status !== 410) throw new Error("Google API error " + r.status);
+  return (r.status === 200 || r.status === 201) ? r.json() : null;
+}
+async function syncToGoogle() {
+  const say = (t, level = "muted") => { $("#ms-sync-status").innerHTML = statusDot(level) + esc(t); };
+  try {
+    say("Requesting Google permission…");
+    await requestWriteToken();
+
+    say("Finding the app calendar…");
+    let calId = data.settings.appCalendarId;
+    if (calId) {
+      const ok = await gwfetch("https://www.googleapis.com/calendar/v3/calendars/" + encodeURIComponent(calId)).then(x => !!x).catch(() => false);
+      if (!ok) calId = null;
+    }
+    if (!calId) {
+      const cal = await gwfetch("https://www.googleapis.com/calendar/v3/calendars", {
+        method: "POST",
+        body: { summary: "Law School App", description: "Created by Law School Command Center. Sync wipes and rewrites this calendar — don't add your own events here." }
+      });
+      calId = cal.id;
+      data.settings.appCalendarId = calId;
+      persist();
+    }
+    const base = "https://www.googleapis.com/calendar/v3/calendars/" + encodeURIComponent(calId);
+
+    say("Clearing previous app events…");
+    const existing = await gwfetch(base + "/events?maxResults=2500&showDeleted=false");
+    for (const ev of existing.items || []) await gwfetch(base + "/events/" + ev.id, { method: "DELETE" });
+
+    const events = [];
+    for (const m of data.milestones) {
+      if (!m.date || m.status === "done") continue;
+      events.push({ summary: "⚖️ " + m.name, start: { date: m.date }, end: { date: addDays(m.date, 1) }, description: m.notes || "" });
+      for (const t of m.lead_tasks || []) {
+        if (t.done) continue;
+        const d = taskDate(m, t);
+        events.push({ summary: "⚖️ " + t.label, start: { date: d }, end: { date: addDays(d, 1) }, description: `Lead task for ${m.name} (${fmtDate(m.date)})` });
+      }
+    }
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const today = isoDay(new Date());
+    for (const b of studySettings().plan || []) {
+      if (b.status !== "todo" || b.date < today) continue;
+      const slot = STUDY_SLOTS.find(s => s.key === b.slot);
+      const c = data.courses.find(x => x.id === b.courseId);
+      if (!slot || !c) continue;
+      events.push({
+        summary: `📚 ${c.name} — ${b.type || "study"}`,
+        start: { dateTime: `${b.date}T${String(slot.start).padStart(2, "0")}:00:00`, timeZone: tz },
+        end: { dateTime: `${b.date}T${String(slot.end).padStart(2, "0")}:00:00`, timeZone: tz }
+      });
+    }
+
+    say(`Writing ${events.length} events…`);
+    let n = 0;
+    for (const ev of events) { await gwfetch(base + "/events", { method: "POST", body: ev }); n++; say(`Writing events… ${n}/${events.length}`); }
+    say(`Synced ${n} events to "Law School App" — check your Google Calendar list.`, "good");
+  } catch (e) {
+    console.error("sync failed", e);
+    say("Sync failed: " + e.message, "critical");
+  }
+}
+
+/* =====================================================================
+   STUDENT ORGS — board contacts, org tasks, meeting log
+   (stored in settings — no schema change needed, same pattern as .study)
+   ===================================================================== */
+const studentOrgs = () => data.settings.studentOrgs || (data.settings.studentOrgs = []);
+const nextOrgId = () => studentOrgs().reduce((m, o) => Math.max(m, o.id), 0) + 1;
+const nextSubId = list => list.reduce((m, x) => Math.max(m, x.id), 0) + 1;
+
+function renderOrgs() {
+  const box = $("#orgs-list");
+  box.innerHTML = "";
+  const today = isoDay(new Date());
+  for (const org of studentOrgs()) {
+    const card = el("div", "ms-card");
+
+    const head = el("div", "ms-head");
+    head.append(el("span", "ms-name", esc(org.name)));
+    if (org.role) head.append(el("span", "chip", esc(org.role)));
+    const delOrgBtn = el("button", null, "delete organization");
+    delOrgBtn.style.cssText = "font:inherit;font-size:0.7rem;border:none;background:none;color:var(--muted);cursor:pointer;margin-left:auto";
+    delOrgBtn.addEventListener("click", () => {
+      if (!confirm(`Delete "${org.name}" and everything under it?`)) return;
+      data.settings.studentOrgs = studentOrgs().filter(o => o.id !== org.id);
+      persist(); renderOrgs();
+    });
+    head.append(delOrgBtn);
+    card.append(head);
+
+    /* ---- board members ---- */
+    card.append(el("h3", null, "Board members"));
+    const boardBox = el("div");
+    for (const m of org.board) {
+      const row = el("div", "org-row org-row-board");
+      const nameIn = document.createElement("input"); nameIn.type = "text"; nameIn.placeholder = "Name"; nameIn.value = m.name || "";
+      nameIn.addEventListener("change", () => { m.name = nameIn.value.trim(); persist(); });
+      const roleIn = document.createElement("input"); roleIn.type = "text"; roleIn.placeholder = "Role"; roleIn.value = m.role || "";
+      roleIn.addEventListener("change", () => { m.role = roleIn.value.trim(); persist(); });
+      const emailIn = document.createElement("input"); emailIn.type = "email"; emailIn.placeholder = "Email"; emailIn.value = m.email || "";
+      emailIn.addEventListener("change", () => { m.email = emailIn.value.trim(); persist(); });
+      const phoneIn = document.createElement("input"); phoneIn.type = "tel"; phoneIn.placeholder = "Phone"; phoneIn.value = m.phone || "";
+      phoneIn.addEventListener("change", () => { m.phone = phoneIn.value.trim(); persist(); });
+      const delBtn = el("button", null, ICONS.x);
+      delBtn.addEventListener("click", () => { org.board = org.board.filter(x => x.id !== m.id); persist(); renderOrgs(); });
+      [nameIn, roleIn, emailIn, phoneIn].forEach(i => row.append(i));
+      row.append(delBtn);
+      boardBox.append(row);
+    }
+    card.append(boardBox);
+    const addBoardRow = el("div", "ms-actions");
+    const bName = document.createElement("input"); bName.type = "text"; bName.placeholder = "Name"; bName.style.width = "140px";
+    const bRole = document.createElement("input"); bRole.type = "text"; bRole.placeholder = "Role (e.g. VP)"; bRole.style.width = "110px";
+    const bEmail = document.createElement("input"); bEmail.type = "email"; bEmail.placeholder = "Email"; bEmail.style.width = "160px";
+    const bPhone = document.createElement("input"); bPhone.type = "tel"; bPhone.placeholder = "Phone"; bPhone.style.width = "120px";
+    const bAdd = el("button", null, "Add board member");
+    bAdd.addEventListener("click", () => {
+      if (!bName.value.trim()) return;
+      org.board.push({ id: nextSubId(org.board), name: bName.value.trim(), role: bRole.value.trim(), email: bEmail.value.trim(), phone: bPhone.value.trim() });
+      persist(); renderOrgs();
+    });
+    addBoardRow.append(bName, bRole, bEmail, bPhone, bAdd);
+    card.append(addBoardRow);
+
+    /* ---- tasks ---- */
+    card.append(el("h3", null, "Tasks"));
+    const sortedTasks = [...org.tasks].sort((a, b) => (a.due_date || "9999") < (b.due_date || "9999") ? -1 : 1);
+    for (const t of sortedTasks) {
+      const overdue = t.due_date && t.due_date < today && !t.done;
+      const row = el("div", "ms-task" + (t.done ? " done" : "") + (overdue ? " overdue" : ""));
+      const cb = document.createElement("input");
+      cb.type = "checkbox"; cb.checked = !!t.done;
+      cb.addEventListener("change", () => { t.done = cb.checked; persist(); renderOrgs(); });
+      row.append(cb);
+      row.append(el("span", "mt-date", t.due_date ? fmtDate(t.due_date) : "no due date"));
+      row.append(el("span", "mt-label", esc(t.label)));
+      const rm = el("button", null, ICONS.x);
+      rm.addEventListener("click", () => { org.tasks = org.tasks.filter(x => x.id !== t.id); persist(); renderOrgs(); });
+      row.append(rm);
+      card.append(row);
+    }
+    const addTaskRow = el("div", "ms-actions");
+    const tLabel = document.createElement("input"); tLabel.type = "text"; tLabel.placeholder = "New task"; tLabel.style.width = "220px";
+    const tDate = document.createElement("input"); tDate.type = "date";
+    const tAdd = el("button", null, "Add task");
+    tAdd.addEventListener("click", () => {
+      if (!tLabel.value.trim()) return;
+      org.tasks.push({ id: nextSubId(org.tasks), label: tLabel.value.trim(), due_date: tDate.value || null, done: false });
+      tLabel.value = ""; tDate.value = "";
+      persist(); renderOrgs();
+    });
+    addTaskRow.append(tLabel, tDate, tAdd);
+    card.append(addTaskRow);
+
+    /* ---- meetings ---- */
+    card.append(el("h3", null, "Meetings"));
+    const sortedMeetings = [...org.meetings].sort((a, b) => (a.date || "9999") < (b.date || "9999") ? -1 : 1);
+    for (const mt of sortedMeetings) {
+      const past = mt.date && mt.date < today;
+      const row = el("div", "ms-task" + (past ? " done" : ""));
+      row.append(el("span", "mt-date", mt.date ? fmtDate(mt.date) + (!past ? ` · in ${daysUntil(mt.date)} days` : "") : "no date"));
+      row.append(el("span", "mt-label", esc(mt.label || "Meeting")));
+      const rm = el("button", null, ICONS.x);
+      rm.addEventListener("click", () => { org.meetings = org.meetings.filter(x => x.id !== mt.id); persist(); renderOrgs(); });
+      row.append(rm);
+      card.append(row);
+    }
+    const addMeetingRow = el("div", "ms-actions");
+    const mDate = document.createElement("input"); mDate.type = "date";
+    const mLabel = document.createElement("input"); mLabel.type = "text"; mLabel.placeholder = "Meeting notes (optional)"; mLabel.style.width = "220px";
+    const mAdd = el("button", null, "Add meeting");
+    mAdd.addEventListener("click", () => {
+      if (!mDate.value) return;
+      org.meetings.push({ id: nextSubId(org.meetings), date: mDate.value, label: mLabel.value.trim() });
+      mDate.value = ""; mLabel.value = "";
+      persist(); renderOrgs();
+    });
+    addMeetingRow.append(mDate, mLabel, mAdd);
+    card.append(addMeetingRow);
+
+    card.append(el("p", "org-more-note", "Links and event-planning info cards are coming to this card next."));
+    box.append(card);
+  }
+}
+function addOrg() {
+  const name = $("#org-new-name").value.trim();
+  const role = $("#org-new-role").value.trim();
+  if (!name) return;
+  studentOrgs().push({ id: nextOrgId(), name, role, board: [], tasks: [], meetings: [] });
+  $("#org-new-name").value = ""; $("#org-new-role").value = "";
+  persist(); renderOrgs();
+}
+
+/* =====================================================================
+   NAV, FOOTER, INIT
+   ===================================================================== */
+function showView(name) {
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("active", b.dataset.view === name));
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === "view-" + name));
+}
+$("#tabs").addEventListener("click", e => {
+  const btn = e.target.closest("button[data-view]");
+  if (btn) showView(btn.dataset.view);
+});
+$("#reset-seed").addEventListener("click", () => {
+  if (!confirm("Reset everything to the seed transcript? Saved scenarios are lost too.")) return;
+  localStorage.removeItem(STORE_KEY);
+  data = store.load();
+  persist();
+  renderAll();
+});
+$("#export-json").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "law-school-data.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+$("#import-json").addEventListener("click", () => {
+  const btn = $("#import-json");
+  const flash = msg => { btn.textContent = msg; setTimeout(() => { btn.textContent = "Import data (JSON)"; }, 2500); };
+  const inp = document.createElement("input");
+  inp.type = "file"; inp.accept = "application/json,.json";
+  inp.onchange = async () => {
+    const f = inp.files[0];
+    if (!f) return;
+    if (!confirm("Replace ALL current data (courses, milestones, plans, settings) with this file's contents?")) return;
+    try {
+      data = normalizeData(JSON.parse(await f.text()));
+      persist(); renderAll();
+      flash("Imported");
+    } catch (e) {
+      console.error("import failed", e);
+      flash("Import failed — not valid JSON");
+    }
+  };
+  inp.click();
+});
+
+function fillSemesterSelect() {
+  const sel = $("#add-semester");
+  sel.innerHTML = '<option value="">Unscheduled</option>';
+  for (const s of SEMESTER_ORDER) {
+    const o = document.createElement("option");
+    o.value = s; o.textContent = s;
+    sel.append(o);
+  }
+}
+
+function renderAll() {
+  renderAudit();
+  renderPlanner();
+  renderCourses();
+  renderNotes();
+  renderStudy();
+  renderMilestones();
+  renderOrgs();
+  renderAgendaShell();
+}
+$("#study-start").addEventListener("change", e => { studySettings().startDate = e.target.value; persist(); });
+const rememberedEmail = localStorage.getItem("ls-remembered-email");
+if (rememberedEmail) { $("#auth-email").value = rememberedEmail; $("#auth-remember").checked = true; }
+fillSemesterSelect();
+renderAll();
+</script>
+</body>
+</html>
