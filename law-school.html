@@ -318,7 +318,35 @@ button.ghost:hover, .scenario-bar button:hover { border-color: var(--accent); }
 .org-row input[type="tel"] { flex: 1 1 110px; min-width: 90px; }
 .org-row button { border: none; background: none; color: var(--muted); cursor: pointer; flex: none; }
 .org-row button:hover { color: var(--critical); }
-.org-more-note { font-size: 0.74rem; color: var(--muted); margin-top: 10px; border-top: 1px solid var(--hairline); padding-top: 8px; }
+.org-more-note { font-size: 0.74rem; color: var(--muted); margin-top: 6px; }
+.org-collapse { border: none; background: none; cursor: pointer; color: var(--muted); padding: 2px; }
+.org-collapse .icon { transition: transform 0.15s; }
+.org-collapsed .org-collapse .icon { transform: rotate(-90deg); }
+.org-summary { font-size: 0.72rem; color: var(--muted); }
+.mt-label-input { font: inherit; font-size: 0.8rem; border: 1px solid transparent; background: none; color: var(--ink); flex: 1; min-width: 120px; padding: 2px 4px; border-radius: 4px; }
+.mt-label-input:hover, .mt-label-input:focus { border-color: var(--border); background: var(--surface); }
+.chip.evt-tag { background: var(--meter-track); color: var(--accent-strong); }
+.org-blocks { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 10px; margin-top: 8px; }
+.blk { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 10px 12px; }
+.blk.dragover { outline: 2px solid var(--accent); outline-offset: -2px; }
+.blk-head { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
+.blk-grip { cursor: grab; color: var(--muted); flex: none; }
+.blk-title { font: inherit; font-size: 0.82rem; font-weight: 600; border: 1px solid transparent; background: none; color: var(--ink); flex: 1; min-width: 0; padding: 2px 4px; border-radius: 4px; }
+.blk-title:hover, .blk-title:focus { border-color: var(--border); background: var(--page); }
+.blk-head button { border: none; background: none; color: var(--muted); cursor: pointer; padding: 2px; flex: none; }
+.blk-head button:hover { color: var(--ink); }
+.blk textarea { width: 100%; font: inherit; font-size: 0.78rem; border: 1px solid var(--border); border-radius: 6px; background: var(--page); color: var(--ink); padding: 6px 8px; min-height: 64px; resize: vertical; }
+.blk-row { display: flex; gap: 6px; align-items: center; padding: 3px 0; flex-wrap: wrap; }
+.blk-row input { font: inherit; font-size: 0.76rem; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--page); color: var(--ink); }
+.blk-row button, .blk-add { font: inherit; font-size: 0.72rem; border: 1px solid var(--border); background: var(--surface); color: var(--ink-2); border-radius: 6px; padding: 3px 8px; cursor: pointer; }
+.blk-row button.blk-x { border: none; background: none; color: var(--muted); padding: 2px; }
+.blk-row button.blk-x:hover { color: var(--critical); }
+.blk-field { display: grid; grid-template-columns: 90px 1fr; gap: 6px; align-items: center; font-size: 0.74rem; color: var(--muted); padding: 2px 0; }
+.blk-field input { font: inherit; font-size: 0.76rem; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--page); color: var(--ink); }
+.small-cb { display: flex; gap: 7px; align-items: flex-start; font-size: 0.74rem; padding: 3px 0; cursor: pointer; color: var(--ink-2); }
+.small-cb input { margin-top: 2px; flex: none; }
+.warn-pending { font-size: 0.72rem; color: var(--serious); border: 1px dashed var(--serious); border-radius: 6px; padding: 6px 8px; margin-top: 6px; }
+.note-rule { font-size: 0.7rem; color: var(--muted); margin-top: 4px; }
 
 /* ---- auth ---- */
 #auth-overlay { position: fixed; inset: 0; background: var(--page); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem; }
@@ -1038,7 +1066,11 @@ const ICONS = {
   refresh: svgIcon('<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>'),
   undo: svgIcon('<polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>'),
   externalLink: svgIcon('<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>'),
-  chevronRight: svgIcon('<polyline points="9 18 15 12 9 6"/>')
+  chevronRight: svgIcon('<polyline points="9 18 15 12 9 6"/>'),
+  chevronDown: svgIcon('<polyline points="6 9 12 15 18 9"/>'),
+  grip: svgIcon('<circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/>'),
+  arrowUp: svgIcon('<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>'),
+  arrowDown: svgIcon('<line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>')
 };
 const statusDot = level => `<span class="status-dot ${level}"></span>`;
 
@@ -2197,23 +2229,75 @@ async function syncToGoogle() {
 }
 
 /* =====================================================================
-   STUDENT ORGS — board contacts, org tasks, meeting log
-   (stored in settings — no schema change needed, same pattern as .study)
+   STUDENT ORGS — board, tasks, meetings, events, and a block system
+   (notes / links / ideas / meeting / event cards) per organization.
+   Stored in settings.studentOrgs (jsonb) — no schema change needed.
    ===================================================================== */
 const studentOrgs = () => data.settings.studentOrgs || (data.settings.studentOrgs = []);
 const nextOrgId = () => studentOrgs().reduce((m, o) => Math.max(m, o.id), 0) + 1;
 const nextSubId = list => list.reduce((m, x) => Math.max(m, x.id), 0) + 1;
+
+const BLOCK_TYPES = { notes: "Notes", links: "Links", ideas: "Ideas", meeting: "Meeting", event: "Event", guide: "Event planning guide" };
+const LRC_STEPS = [
+  "Tell Dean Coel about your event idea — do nothing until this happens (it's about communication, not permission)",
+  "Tell your adviser your idea(s)",
+  "Fill out the Events Form",
+  "Reserve the space in 25Live — in the dropdown, scroll past “event searches” to “location searches”, then “law”",
+  "PDF / email confirmation received from the Law Resource Center (LRC)"
+];
+const CLEANUP_RULE = "Handbook rule: spaces cleared and cleaned at least 10 minutes before the next class — wipe down anywhere food sat and anywhere people spoke (podiums, desks).";
+const GUIDE_TEXT = `Five steps to put on an event (LRC process):
+
+1) Tell Dean Coel about your event idea — do nothing until this happens. It's not about permission, it's about communication.
+2) Tell your adviser your idea(s).
+3) Fill out the Events Form.
+4) Reserve the space in 25Live (https://25live.collegenet.com/pro/louisville): from the dropdown, scroll past "event searches" to "location searches", then scroll down to "law".
+5) WAIT FOR THE PDF CONFIRMATION — nothing is official, and no event may proceed, until you get a PDF or email confirmation from the Law Resource Center (LRC).
+
+Completing these five steps means the request is PENDING — do not reach out to attorneys, judges, or alumni until all steps are completed and confirmed. Until a request is confirmed, the planning process should not begin.
+
+Student Handbook: all events must conclude with spaces cleared and cleaned at least 10 minutes before class begins — wipe down any area where food was placed and anywhere students or guests were speaking (podiums, desks).`;
+
+function newBlock(org, type) {
+  const id = nextSubId(org.blocks);
+  switch (type) {
+    case "guide": return { id, type: "notes", title: "Event planning guide", text: GUIDE_TEXT };
+    case "links": return { id, type, title: "Links", items: [] };
+    case "ideas": return { id, type, title: "Org ideas", items: [] };
+    case "meeting": return { id, type, title: "Meeting", date: "", time: "", room: "", room_reserved: false, notes: "" };
+    case "event": return { id, type, title: "New event", date: "", time: "", venue: "", itinerary: "", refreshments: "", tasks: [], checklist: [false, false, false, false, false] };
+    default: return { id, type: "notes", title: "Notes", text: "" };
+  }
+}
+const orgInput = (type, value, placeholder, onChange) => {
+  const i = document.createElement("input");
+  i.type = type; i.value = value ?? "";
+  if (placeholder) i.placeholder = placeholder;
+  i.addEventListener("change", () => onChange(i.value));
+  return i;
+};
 
 function renderOrgs() {
   const box = $("#orgs-list");
   box.innerHTML = "";
   const today = isoDay(new Date());
   for (const org of studentOrgs()) {
-    const card = el("div", "ms-card");
+    org.blocks = org.blocks || [];
+    const card = el("div", "ms-card" + (org.collapsed ? " org-collapsed" : ""));
 
+    /* ---- header: collapse, name, role, summary, delete ---- */
     const head = el("div", "ms-head");
-    head.append(el("span", "ms-name", esc(org.name)));
+    const collapseBtn = el("button", "org-collapse", ICONS.chevronDown);
+    collapseBtn.title = org.collapsed ? "Expand" : "Collapse";
+    collapseBtn.addEventListener("click", () => { org.collapsed = !org.collapsed; persist(); renderOrgs(); });
+    head.append(collapseBtn, el("span", "ms-name", esc(org.name)));
     if (org.role) head.append(el("span", "chip", esc(org.role)));
+    if (org.collapsed) {
+      const openTasks = org.tasks.filter(t => !t.done).length
+        + org.blocks.filter(b => b.type === "event").reduce((n, ev) => n + (ev.tasks || []).filter(t => !t.done).length, 0);
+      const evCount = org.blocks.filter(b => b.type === "event").length;
+      head.append(el("span", "org-summary", `${openTasks} open task${openTasks === 1 ? "" : "s"} · ${evCount} event${evCount === 1 ? "" : "s"}`));
+    }
     const delOrgBtn = el("button", null, "delete organization");
     delOrgBtn.style.cssText = "font:inherit;font-size:0.7rem;border:none;background:none;color:var(--muted);cursor:pointer;margin-left:auto";
     delOrgBtn.addEventListener("click", () => {
@@ -2224,31 +2308,28 @@ function renderOrgs() {
     head.append(delOrgBtn);
     card.append(head);
 
+    if (org.collapsed) { box.append(card); continue; }
+
     /* ---- board members ---- */
     card.append(el("h3", null, "Board members"));
-    const boardBox = el("div");
     for (const m of org.board) {
-      const row = el("div", "org-row org-row-board");
-      const nameIn = document.createElement("input"); nameIn.type = "text"; nameIn.placeholder = "Name"; nameIn.value = m.name || "";
-      nameIn.addEventListener("change", () => { m.name = nameIn.value.trim(); persist(); });
-      const roleIn = document.createElement("input"); roleIn.type = "text"; roleIn.placeholder = "Role"; roleIn.value = m.role || "";
-      roleIn.addEventListener("change", () => { m.role = roleIn.value.trim(); persist(); });
-      const emailIn = document.createElement("input"); emailIn.type = "email"; emailIn.placeholder = "Email"; emailIn.value = m.email || "";
-      emailIn.addEventListener("change", () => { m.email = emailIn.value.trim(); persist(); });
-      const phoneIn = document.createElement("input"); phoneIn.type = "tel"; phoneIn.placeholder = "Phone"; phoneIn.value = m.phone || "";
-      phoneIn.addEventListener("change", () => { m.phone = phoneIn.value.trim(); persist(); });
+      const row = el("div", "org-row");
+      row.append(
+        orgInput("text", m.name, "Name", v => { m.name = v.trim(); persist(); }),
+        orgInput("text", m.role, "Role", v => { m.role = v.trim(); persist(); }),
+        orgInput("email", m.email, "Email", v => { m.email = v.trim(); persist(); }),
+        orgInput("tel", m.phone, "Phone", v => { m.phone = v.trim(); persist(); })
+      );
       const delBtn = el("button", null, ICONS.x);
       delBtn.addEventListener("click", () => { org.board = org.board.filter(x => x.id !== m.id); persist(); renderOrgs(); });
-      [nameIn, roleIn, emailIn, phoneIn].forEach(i => row.append(i));
       row.append(delBtn);
-      boardBox.append(row);
+      card.append(row);
     }
-    card.append(boardBox);
     const addBoardRow = el("div", "ms-actions");
-    const bName = document.createElement("input"); bName.type = "text"; bName.placeholder = "Name"; bName.style.width = "140px";
-    const bRole = document.createElement("input"); bRole.type = "text"; bRole.placeholder = "Role (e.g. VP)"; bRole.style.width = "110px";
-    const bEmail = document.createElement("input"); bEmail.type = "email"; bEmail.placeholder = "Email"; bEmail.style.width = "160px";
-    const bPhone = document.createElement("input"); bPhone.type = "tel"; bPhone.placeholder = "Phone"; bPhone.style.width = "120px";
+    const bName = orgInput("text", "", "Name", () => {}); bName.style.width = "140px";
+    const bRole = orgInput("text", "", "Role (e.g. VP)", () => {}); bRole.style.width = "110px";
+    const bEmail = orgInput("email", "", "Email", () => {}); bEmail.style.width = "160px";
+    const bPhone = orgInput("tel", "", "Phone", () => {}); bPhone.style.width = "120px";
     const bAdd = el("button", null, "Add board member");
     bAdd.addEventListener("click", () => {
       if (!bName.value.trim()) return;
@@ -2258,71 +2339,332 @@ function renderOrgs() {
     addBoardRow.append(bName, bRole, bEmail, bPhone, bAdd);
     card.append(addBoardRow);
 
-    /* ---- tasks ---- */
+    /* ---- tasks: general + event-card tasks merged (event tasks tagged, due = event date) ---- */
     card.append(el("h3", null, "Tasks"));
-    const sortedTasks = [...org.tasks].sort((a, b) => (a.due_date || "9999") < (b.due_date || "9999") ? -1 : 1);
-    for (const t of sortedTasks) {
-      const overdue = t.due_date && t.due_date < today && !t.done;
+    const eventTaskRows = org.blocks.filter(b => b.type === "event")
+      .flatMap(ev => (ev.tasks || []).map(t => ({ t, ev })));
+    const taskRows = [...org.tasks.map(t => ({ t, ev: null })), ...eventTaskRows]
+      .sort((a, b) => (a.t.due_date || a.ev?.date || "9999").localeCompare(b.t.due_date || b.ev?.date || "9999"));
+    for (const { t, ev } of taskRows) {
+      const due = t.due_date || ev?.date || null;
+      const overdue = due && due < today && !t.done;
       const row = el("div", "ms-task" + (t.done ? " done" : "") + (overdue ? " overdue" : ""));
       const cb = document.createElement("input");
       cb.type = "checkbox"; cb.checked = !!t.done;
       cb.addEventListener("change", () => { t.done = cb.checked; persist(); renderOrgs(); });
       row.append(cb);
-      row.append(el("span", "mt-date", t.due_date ? fmtDate(t.due_date) : "no due date"));
-      row.append(el("span", "mt-label", esc(t.label)));
+      if (ev) {
+        row.append(el("span", "mt-date", ev.date ? fmtDate(ev.date) : "with event"));
+      } else {
+        const dWrap = el("span", "mt-date");
+        const d = orgInput("date", t.due_date || "", "", v => { t.due_date = v || null; persist(); renderOrgs(); });
+        d.style.cssText = "font:inherit;font-size:0.7rem;border:1px solid transparent;background:none;color:inherit;border-radius:4px;max-width:140px";
+        d.addEventListener("focus", () => { d.style.borderColor = "var(--border)"; });
+        dWrap.append(d);
+        row.append(dWrap);
+      }
+      const lab = orgInput("text", t.label, "task", v => { t.label = v.trim(); persist(); });
+      lab.className = "mt-label-input";
+      row.append(lab);
+      if (ev && t.who) row.append(el("span", "chip", esc(t.who)));
+      if (ev) row.append(el("span", "chip evt-tag", esc(ev.title || "event")));
       const rm = el("button", null, ICONS.x);
-      rm.addEventListener("click", () => { org.tasks = org.tasks.filter(x => x.id !== t.id); persist(); renderOrgs(); });
+      rm.addEventListener("click", () => {
+        if (ev) ev.tasks = ev.tasks.filter(x => x.id !== t.id);
+        else org.tasks = org.tasks.filter(x => x.id !== t.id);
+        persist(); renderOrgs();
+      });
       row.append(rm);
       card.append(row);
     }
     const addTaskRow = el("div", "ms-actions");
-    const tLabel = document.createElement("input"); tLabel.type = "text"; tLabel.placeholder = "New task"; tLabel.style.width = "220px";
-    const tDate = document.createElement("input"); tDate.type = "date";
+    const tLabel = orgInput("text", "", "New task", () => {}); tLabel.style.width = "220px";
+    const tDate = orgInput("date", "", "", () => {});
     const tAdd = el("button", null, "Add task");
     tAdd.addEventListener("click", () => {
       if (!tLabel.value.trim()) return;
       org.tasks.push({ id: nextSubId(org.tasks), label: tLabel.value.trim(), due_date: tDate.value || null, done: false });
-      tLabel.value = ""; tDate.value = "";
       persist(); renderOrgs();
     });
     addTaskRow.append(tLabel, tDate, tAdd);
     card.append(addTaskRow);
 
-    /* ---- meetings ---- */
+    /* ---- meetings: quick entries + meeting cards merged ---- */
     card.append(el("h3", null, "Meetings"));
-    const sortedMeetings = [...org.meetings].sort((a, b) => (a.date || "9999") < (b.date || "9999") ? -1 : 1);
-    for (const mt of sortedMeetings) {
-      const past = mt.date && mt.date < today;
+    const mergedMeetings = [
+      ...org.meetings.map(m => ({ kind: "quick", date: m.date, label: m.label || "Meeting", ref: m })),
+      ...org.blocks.filter(b => b.type === "meeting" && b.date).map(b => ({
+        kind: "card", date: b.date,
+        label: (b.title || "Meeting") + (b.time ? " · " + b.time : "") + (b.room ? " · " + b.room : "")
+      }))
+    ].sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
+    for (const m of mergedMeetings) {
+      const past = m.date && m.date < today;
       const row = el("div", "ms-task" + (past ? " done" : ""));
-      row.append(el("span", "mt-date", mt.date ? fmtDate(mt.date) + (!past ? ` · in ${daysUntil(mt.date)} days` : "") : "no date"));
-      row.append(el("span", "mt-label", esc(mt.label || "Meeting")));
-      const rm = el("button", null, ICONS.x);
-      rm.addEventListener("click", () => { org.meetings = org.meetings.filter(x => x.id !== mt.id); persist(); renderOrgs(); });
-      row.append(rm);
+      row.append(el("span", "mt-date", m.date ? fmtDate(m.date) + (!past ? ` · in ${daysUntil(m.date)} days` : "") : "no date"));
+      row.append(el("span", "mt-label", esc(m.label)));
+      if (m.kind === "card") {
+        row.append(el("span", "chip evt-tag", "from card"));
+      } else {
+        const rm = el("button", null, ICONS.x);
+        rm.addEventListener("click", () => { org.meetings = org.meetings.filter(x => x !== m.ref); persist(); renderOrgs(); });
+        row.append(rm);
+      }
       card.append(row);
     }
     const addMeetingRow = el("div", "ms-actions");
-    const mDate = document.createElement("input"); mDate.type = "date";
-    const mLabel = document.createElement("input"); mLabel.type = "text"; mLabel.placeholder = "Meeting notes (optional)"; mLabel.style.width = "220px";
+    const mDate = orgInput("date", "", "", () => {});
+    const mLabel = orgInput("text", "", "Meeting notes (optional)", () => {}); mLabel.style.width = "220px";
     const mAdd = el("button", null, "Add meeting");
     mAdd.addEventListener("click", () => {
       if (!mDate.value) return;
       org.meetings.push({ id: nextSubId(org.meetings), date: mDate.value, label: mLabel.value.trim() });
-      mDate.value = ""; mLabel.value = "";
       persist(); renderOrgs();
     });
     addMeetingRow.append(mDate, mLabel, mAdd);
     card.append(addMeetingRow);
 
-    card.append(el("p", "org-more-note", "Links and event-planning info cards are coming to this card next."));
+    /* ---- events: derived entirely from event cards ---- */
+    card.append(el("h3", null, "Events"));
+    const evBlocks = org.blocks.filter(b => b.type === "event")
+      .sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
+    if (!evBlocks.length) card.append(el("p", "org-more-note", "Add an Event block below — the LRC approval checklist lives on the card."));
+    for (const ev of evBlocks) {
+      const done5 = (ev.checklist || []).filter(Boolean).length;
+      const tDone = (ev.tasks || []).filter(t => t.done).length;
+      const past = ev.date && ev.date < today;
+      const row = el("div", "ms-task" + (past ? " done" : ""));
+      row.append(el("span", "mt-date", ev.date ? fmtDate(ev.date) + (!past ? ` · in ${daysUntil(ev.date)} days` : "") : "no date"));
+      row.append(el("span", "mt-label", esc(ev.title || "Event") + (ev.venue ? " — " + esc(ev.venue) : "")));
+      row.append(el("span", null, `${statusDot(done5 === 5 ? "good" : "warning")}<span style="font-size:0.7rem;color:var(--ink-2)">approval ${done5}/5</span>`));
+      if ((ev.tasks || []).length) row.append(el("span", null, `<span style="font-size:0.7rem;color:var(--muted)">tasks ${tDone}/${ev.tasks.length}</span>`));
+      card.append(row);
+    }
+
+    /* ---- blocks ---- */
+    const addBlockRow = el("div", "ms-actions");
+    addBlockRow.style.marginTop = "12px";
+    addBlockRow.append(el("strong", null, '<span style="font-size:0.78rem">Blocks:</span>'));
+    const typeSel = document.createElement("select");
+    typeSel.style.cssText = "font:inherit;font-size:0.74rem;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--ink)";
+    for (const [v, label] of Object.entries(BLOCK_TYPES)) {
+      const o = document.createElement("option");
+      o.value = v; o.textContent = label;
+      typeSel.append(o);
+    }
+    const addBlockBtn = el("button", null, "Add block");
+    addBlockBtn.addEventListener("click", () => {
+      org.blocks.push(newBlock(org, typeSel.value));
+      persist(); renderOrgs();
+    });
+    addBlockRow.append(typeSel, addBlockBtn);
+    card.append(addBlockRow);
+
+    const grid = el("div", "org-blocks");
+    org.blocks.forEach((b, idx) => grid.append(blockCard(org, b, idx)));
+    card.append(grid);
+
     box.append(card);
   }
 }
+
+function moveBlock(org, fromIdx, toIdx) {
+  if (toIdx < 0 || toIdx >= org.blocks.length || fromIdx === toIdx) return;
+  const [b] = org.blocks.splice(fromIdx, 1);
+  org.blocks.splice(toIdx, 0, b);
+  persist(); renderOrgs();
+}
+
+function blockCard(org, b, idx) {
+  const card = el("div", "blk");
+
+  const head = el("div", "blk-head");
+  const grip = el("span", "blk-grip", ICONS.grip);
+  grip.draggable = true;
+  grip.title = "Drag to reorder";
+  grip.addEventListener("dragstart", e => {
+    e.dataTransfer.setData("text/plain", `orgblk:${org.id}:${idx}`);
+    e.dataTransfer.effectAllowed = "move";
+  });
+  head.append(grip);
+  const title = orgInput("text", b.title, "Title", v => { b.title = v.trim(); persist(); renderOrgs(); });
+  title.className = "blk-title";
+  head.append(title);
+  const up = el("button", null, ICONS.arrowUp);
+  up.title = "Move up";
+  up.addEventListener("click", () => moveBlock(org, idx, idx - 1));
+  const down = el("button", null, ICONS.arrowDown);
+  down.title = "Move down";
+  down.addEventListener("click", () => moveBlock(org, idx, idx + 1));
+  const del = el("button", null, ICONS.x);
+  del.title = "Delete block";
+  del.addEventListener("click", () => {
+    if (!confirm(`Delete the "${b.title || b.type}" block?`)) return;
+    org.blocks = org.blocks.filter(x => x.id !== b.id);
+    persist(); renderOrgs();
+  });
+  head.append(up, down, del);
+  card.append(head);
+
+  // drop target for grip-drag reordering (within the same org)
+  card.addEventListener("dragover", e => {
+    e.preventDefault();
+    card.classList.add("dragover");
+  });
+  card.addEventListener("dragleave", () => card.classList.remove("dragover"));
+  card.addEventListener("drop", e => {
+    e.preventDefault();
+    card.classList.remove("dragover");
+    const token = e.dataTransfer.getData("text/plain");
+    if (!token.startsWith("orgblk:")) return;
+    const [, oid, fromIdx] = token.split(":");
+    if (Number(oid) !== org.id) return;
+    moveBlock(org, Number(fromIdx), idx);
+  });
+
+  /* ---- type bodies ---- */
+  if (b.type === "notes") {
+    const ta = document.createElement("textarea");
+    ta.value = b.text || ""; ta.placeholder = "Notes…";
+    ta.addEventListener("change", () => { b.text = ta.value; persist(); });
+    card.append(ta);
+  }
+
+  if (b.type === "links") {
+    for (const it of b.items) {
+      const row = el("div", "blk-row");
+      const lab = orgInput("text", it.label, "Label", v => { it.label = v.trim(); persist(); });
+      lab.style.width = "110px";
+      const url = orgInput("url", it.url, "https://…", v => { it.url = v.trim(); persist(); renderOrgs(); });
+      url.style.flex = "1"; url.style.minWidth = "120px";
+      row.append(lab, url);
+      if (it.url) row.append(el("span", null, `<a href="${esc(it.url)}" target="_blank" rel="noopener" style="font-size:0.72rem;color:var(--accent)">open ${ICONS.externalLink}</a>`));
+      const rm = el("button", "blk-x", ICONS.x);
+      rm.addEventListener("click", () => { b.items = b.items.filter(x => x.id !== it.id); persist(); renderOrgs(); });
+      row.append(rm);
+      card.append(row);
+    }
+    const add = el("button", "blk-add", "Add link");
+    add.addEventListener("click", () => { b.items.push({ id: nextSubId(b.items), label: "", url: "" }); persist(); renderOrgs(); });
+    card.append(add);
+  }
+
+  if (b.type === "ideas") {
+    for (const it of b.items) {
+      const row = el("div", "blk-row");
+      const txt = orgInput("text", it.text, "Idea…", v => { it.text = v.trim(); persist(); });
+      txt.style.flex = "1"; txt.style.minWidth = "140px";
+      row.append(txt);
+      const toTask = el("button", null, "make task");
+      toTask.title = "Promote to org task";
+      toTask.addEventListener("click", () => {
+        if (!it.text) return;
+        org.tasks.push({ id: nextSubId(org.tasks), label: it.text, due_date: null, done: false });
+        b.items = b.items.filter(x => x.id !== it.id);
+        persist(); renderOrgs();
+      });
+      const toEvent = el("button", null, "make event");
+      toEvent.title = "Promote to event card";
+      toEvent.addEventListener("click", () => {
+        if (!it.text) return;
+        const ev = newBlock(org, "event");
+        ev.title = it.text;
+        org.blocks.push(ev);
+        b.items = b.items.filter(x => x.id !== it.id);
+        persist(); renderOrgs();
+      });
+      const rm = el("button", "blk-x", ICONS.x);
+      rm.addEventListener("click", () => { b.items = b.items.filter(x => x.id !== it.id); persist(); renderOrgs(); });
+      row.append(toTask, toEvent, rm);
+      card.append(row);
+    }
+    const addRow = el("div", "blk-row");
+    const newIdea = orgInput("text", "", "New idea…", () => {});
+    newIdea.style.flex = "1";
+    const add = el("button", "blk-add", "Add");
+    add.addEventListener("click", () => {
+      if (!newIdea.value.trim()) return;
+      b.items.push({ id: nextSubId(b.items), text: newIdea.value.trim() });
+      persist(); renderOrgs();
+    });
+    addRow.append(newIdea, add);
+    card.append(addRow);
+  }
+
+  if (b.type === "meeting") {
+    const field = (label, node) => { const f = el("div", "blk-field"); f.append(el("span", null, label), node); return f; };
+    card.append(field("Date", orgInput("date", b.date, "", v => { b.date = v; persist(); renderOrgs(); })));
+    card.append(field("Time", orgInput("text", b.time, "e.g. 12:15–1:15", v => { b.time = v.trim(); persist(); renderOrgs(); })));
+    card.append(field("Room", orgInput("text", b.room, "Room", v => { b.room = v.trim(); persist(); renderOrgs(); })));
+    const cb = el("label", "small-cb");
+    const c = document.createElement("input");
+    c.type = "checkbox"; c.checked = !!b.room_reserved;
+    c.addEventListener("change", () => { b.room_reserved = c.checked; persist(); });
+    cb.append(c, el("span", null, "Room reserved via 25Live"));
+    card.append(cb);
+    const ta = document.createElement("textarea");
+    ta.value = b.notes || ""; ta.placeholder = "Agenda / notes…"; ta.style.minHeight = "44px";
+    ta.addEventListener("change", () => { b.notes = ta.value; persist(); });
+    card.append(ta);
+  }
+
+  if (b.type === "event") {
+    const field = (label, node) => { const f = el("div", "blk-field"); f.append(el("span", null, label), node); return f; };
+    card.append(field("Date", orgInput("date", b.date, "", v => { b.date = v; persist(); renderOrgs(); })));
+    card.append(field("Time", orgInput("text", b.time, "e.g. 5:00–6:30", v => { b.time = v.trim(); persist(); })));
+    card.append(field("Venue", orgInput("text", b.venue, "Room / location", v => { b.venue = v.trim(); persist(); renderOrgs(); })));
+    card.append(field("Refreshments", orgInput("text", b.refreshments, "e.g. pizza × 4, water", v => { b.refreshments = v.trim(); persist(); })));
+    const ta = document.createElement("textarea");
+    ta.value = b.itinerary || ""; ta.placeholder = "Itinerary…"; ta.style.minHeight = "44px";
+    ta.addEventListener("change", () => { b.itinerary = ta.value; persist(); });
+    card.append(ta);
+    card.append(el("p", "note-rule", esc(CLEANUP_RULE)));
+
+    card.append(el("p", null, '<strong style="font-size:0.74rem">Assigned tasks</strong>'));
+    for (const t of b.tasks) {
+      const row = el("div", "blk-row");
+      const c = document.createElement("input");
+      c.type = "checkbox"; c.checked = !!t.done;
+      c.addEventListener("change", () => { t.done = c.checked; persist(); renderOrgs(); });
+      const lab = orgInput("text", t.label, "Task", v => { t.label = v.trim(); persist(); renderOrgs(); });
+      lab.style.flex = "1"; lab.style.minWidth = "110px";
+      const who = orgInput("text", t.who, "Who?", v => { t.who = v.trim(); persist(); renderOrgs(); });
+      who.style.width = "80px";
+      const rm = el("button", "blk-x", ICONS.x);
+      rm.addEventListener("click", () => { b.tasks = b.tasks.filter(x => x.id !== t.id); persist(); renderOrgs(); });
+      row.append(c, lab, who, rm);
+      card.append(row);
+    }
+    const addT = el("button", "blk-add", "Add task");
+    addT.addEventListener("click", () => { b.tasks.push({ id: nextSubId(b.tasks), label: "", who: "", done: false }); persist(); renderOrgs(); });
+    card.append(addT);
+
+    card.append(el("p", null, '<strong style="font-size:0.74rem">LRC approval checklist</strong>'));
+    b.checklist = b.checklist || [false, false, false, false, false];
+    LRC_STEPS.forEach((step, i) => {
+      const lab = el("label", "small-cb");
+      const c = document.createElement("input");
+      c.type = "checkbox"; c.checked = !!b.checklist[i];
+      c.addEventListener("change", () => { b.checklist[i] = c.checked; persist(); renderOrgs(); });
+      lab.append(c, el("span", null, `${i + 1}. ${esc(step)}`));
+      card.append(lab);
+    });
+    card.append(el("p", null, `<a href="https://25live.collegenet.com/pro/louisville" target="_blank" rel="noopener" style="font-size:0.72rem;color:var(--accent)">Open 25Live ${ICONS.externalLink}</a>`));
+    if (b.checklist.every(Boolean)) {
+      card.append(el("p", "note-rule", `${statusDot("good")}All five steps confirmed — the event is official.`));
+    } else {
+      card.append(el("div", "warn-pending", "Request is PENDING until all five steps are confirmed — don't contact attorneys, judges, or alumni, and hold off on planning."));
+    }
+  }
+
+  return card;
+}
+
 function addOrg() {
   const name = $("#org-new-name").value.trim();
   const role = $("#org-new-role").value.trim();
   if (!name) return;
-  studentOrgs().push({ id: nextOrgId(), name, role, board: [], tasks: [], meetings: [] });
+  studentOrgs().push({ id: nextOrgId(), name, role, collapsed: false, board: [], tasks: [], meetings: [], blocks: [] });
   $("#org-new-name").value = ""; $("#org-new-role").value = "";
   persist(); renderOrgs();
 }
