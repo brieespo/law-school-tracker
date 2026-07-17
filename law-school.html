@@ -323,6 +323,9 @@ button.ghost:hover, .scenario-bar button:hover { border-color: var(--accent); }
 /* ---- auth ---- */
 #auth-overlay { position: fixed; inset: 0; background: var(--page); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem; }
 #auth-overlay.hidden { display: none; }
+#onboard-overlay { position: fixed; inset: 0; background: var(--page); z-index: 90; display: flex; align-items: center; justify-content: center; padding: 1rem; overflow-y: auto; }
+#onboard-overlay.hidden { display: none; }
+#onboard-overlay .auth-field select { width: 100%; font: inherit; font-size: 0.85rem; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--page); color: var(--ink); }
 .auth-box { max-width: 340px; width: 100%; text-align: center; }
 .auth-box .auth-logo { width: 2rem; height: 2rem; color: var(--accent); }
 .auth-box h2 { margin: 6px 0 2px; }
@@ -351,7 +354,7 @@ footer button { font: inherit; font-size: 0.72rem; border: none; background: non
   <div class="auth-box card">
     <div class="auth-logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="100%" height="100%"><path d="M12 3v18M5 8l-3 6a4 4 0 0 0 8 0zM19 8l-3 6a4 4 0 0 0 8 0zM5 8h14M9 3h6"/></svg></div>
     <h2>Law School Command Center</h2>
-    <p class="auth-sub" id="auth-subtitle">Sign in — same account as the Dinner Planner</p>
+    <p class="auth-sub" id="auth-subtitle">Sign in to sync your data across devices</p>
     <div class="auth-field">
       <label>Email</label>
       <input type="email" id="auth-email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')authSubmit()">
@@ -371,10 +374,29 @@ footer button { font: inherit; font-size: 0.72rem; border: none; background: non
   </div>
 </div>
 
+<div id="onboard-overlay" class="hidden">
+  <div class="auth-box card" style="max-width:400px;text-align:left">
+    <h2 style="text-align:center;margin-bottom:2px">Set up your tracker</h2>
+    <p class="auth-sub" style="text-align:center">A few questions — everything can be changed later.</p>
+    <div class="auth-field">
+      <label>When did you start law school?</label>
+      <select id="ob-start" onchange="obFillGradOptions()"></select>
+    </div>
+    <div class="auth-field">
+      <label>Target graduation</label>
+      <select id="ob-grad"></select>
+    </div>
+    <label class="auth-remember"><input type="checkbox" id="ob-journal"> I'm on Law Review / a journal (satisfies the ULWR requirement)</label>
+    <label class="auth-remember"><input type="checkbox" id="ob-ps"> My 30 public service hours are already completed</label>
+    <button class="primary" onclick="completeOnboarding()">Build my tracker</button>
+    <p style="font-size:0.72rem;color:var(--muted);margin-top:10px">The 1L curriculum is preloaded into the right semesters based on your start date. Add grades (private to your account) and upper-level courses on the Courses tab.</p>
+  </div>
+</div>
+
 <header class="app-header">
   <div class="header-row">
     <h1><svg class="icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 8l-3 6a4 4 0 0 0 8 0zM19 8l-3 6a4 4 0 0 0 8 0zM5 8h14M9 3h6"/></svg> Law School Command Center</h1>
-    <span class="header-sub">Brandeis School of Law · target May 2028 · Indiana bar</span>
+    <span class="header-sub" id="header-sub">Brandeis School of Law</span>
     <div class="user-info" id="user-info" style="display:none">
       <span id="user-email"></span> · <span id="sync-status"></span> · <a onclick="doSignOut()">sign out</a>
     </div>
@@ -493,7 +515,7 @@ footer button { font: inherit; font-size: 0.72rem; border: none; background: non
         <h2>Requirement buckets</h2>
         <div class="tier-legend">
           <span><span class="swatch" style="background:var(--tier-completed)"></span>Completed</span>
-          <span><span class="swatch" style="background:var(--tier-progress)"></span>In progress (Fall 2026)</span>
+          <span><span class="swatch" style="background:var(--tier-progress)"></span>In progress (<span id="legend-current-sem"></span>)</span>
           <span><span class="swatch seg planned" style="display:inline-block"></span>Planned</span>
         </div>
         <div id="audit-meters"></div>
@@ -541,6 +563,7 @@ footer button { font: inherit; font-size: 0.72rem; border: none; background: non
             <option value="">Elective</option>
             <option value="core">Core</option>
             <option value="perspective">Perspective</option>
+            <option value="ulwr">ULWR</option>
             <option value="experiential_simulation">Simulation</option>
             <option value="experiential_live_client">Live client</option>
           </select>
@@ -566,6 +589,7 @@ footer button { font: inherit; font-size: 0.72rem; border: none; background: non
           <option value="">Elective</option>
           <option value="core">Core</option>
           <option value="perspective">Perspective</option>
+            <option value="ulwr">ULWR</option>
           <option value="experiential_simulation">Simulation</option>
           <option value="experiential_live_client">Live client</option>
         </select>
@@ -578,7 +602,7 @@ footer button { font: inherit; font-size: 0.72rem; border: none; background: non
 </main>
 
 <footer>
-  <span>Signed-in data syncs to Supabase (same account as the Dinner Planner); guest mode stays in this browser. Google Calendar comes next.</span>
+  <span>Signed-in data syncs to your private account; guest mode stays in this browser.</span>
   <button id="export-json">Export data (JSON)</button>
   <button id="import-json">Import data (JSON)</button>
   <button id="reset-seed">Reset to seed data</button>
@@ -588,52 +612,35 @@ footer button { font: inherit; font-size: 0.72rem; border: none; background: non
 "use strict";
 
 /* =====================================================================
-   SEED DATA — from law-courses-seed.json (unofficial transcript 2026-07-09)
+   SEED DATA — generic starter for a brand-new account. Personal data
+   (courses with grades, real dates) lives only in each user's private
+   account row; the 1L curriculum is generated at onboarding.
    ===================================================================== */
 const SEED = {
-  courses: [
-    // grades intentionally not seeded — they live only in each user's private account row
-    { id:1,  code:"LAW 800", name:"Contracts",                      hours:4, semester:"Fall 2025",   status:"completed", buckets:["1L"] },
-    { id:2,  code:"LAW 801", name:"Torts",                          hours:4, semester:"Fall 2025",   status:"completed", buckets:["1L"] },
-    { id:3,  code:"LAW 811", name:"Lawyering Skills I",             hours:3, semester:"Fall 2025",   status:"completed", buckets:["1L"] },
-    { id:4,  code:"LAW 815", name:"Civil Procedure",                hours:4, semester:"Fall 2025",   status:"completed", buckets:["1L"] },
-    { id:5,  code:"LAW 810", name:"Criminal Law",                   hours:3, semester:"Spring 2026", status:"completed", buckets:["1L"] },
-    { id:6,  code:"LAW 812", name:"Lawyering Skills II",            hours:3, semester:"Spring 2026", status:"completed", buckets:["1L"] },
-    { id:7,  code:"LAW 814", name:"Property",                       hours:4, semester:"Spring 2026", status:"completed", buckets:["1L"] },
-    { id:8,  code:"LAW 816", name:"Professional Identity",          hours:1, semester:"Spring 2026", status:"completed", buckets:["1L"], pass_fail:true },
-    { id:9,  code:"LAW 819", name:"Constitutional Law I",           hours:4, semester:"Spring 2026", status:"completed", buckets:["1L"] },
-    { id:10, code:"LAW 821", name:"Crim Proc: Constitutional Issues", hours:3, semester:"Fall 2026", status:"in_progress", buckets:["core"], online:true },
-    { id:11, code:"LAW 822", name:"Crim Proc: Judicial Process",    hours:3, semester:"Fall 2026",   status:"in_progress", buckets:["core"] },
-    { id:12, code:"LAW 823", name:"Evidence",                       hours:4, semester:"Fall 2026",   status:"in_progress", buckets:["core"] },
-    { id:13, code:"LAW 859", name:"Professional Responsibility",    hours:3, semester:"Fall 2026",   status:"in_progress", buckets:["professional_responsibility"], online:true },
-    { id:14, code:"LAW 900", name:"KY Innocence Project Clinic I",  hours:2, semester:"Fall 2026",   status:"in_progress", buckets:["experiential_live_client"], live_client:true, pass_fail:true },
-    { id:15, code:"LAW 901", name:"KY Innocence Project Clinic II", hours:2, semester:"Spring 2027", status:"planned",     buckets:["experiential_live_client"], live_client:true, pass_fail:true },
-    { id:16, name:"Law Review (Vol 65)", hours:2, semester:"Fall 2026",   status:"in_progress", buckets:[], journal_credit:true },
-    { id:17, name:"Law Review (Vol 65)", hours:2, semester:"Spring 2027", status:"planned",     buckets:[], journal_credit:true }
-  ],
+  courses: [],
   milestones: [
     {
-      id: 1, name: "MPRE", date: "2027-08-15", tentative: true, status: "planned",
-      notes: "Target Aug 2027 by choice: Indiana's ~2-year score validity then covers the July 2028 bar plus a Feb 2029 retake with room to spare. Confirm the exact administration date when NCBE posts it.",
+      id: 1, name: "MPRE", date: null, tentative: true, status: "planned",
+      notes: "Set your target administration date (check NCBE), and verify your state's score-validity window on its board of law examiners site before picking.",
       lead_tasks: [
-        { label: "Verify current Indiana MPRE score-validity rule (Indiana BLE site)", days_before: 90, done: false },
+        { label: "Verify your state's MPRE score-validity rule", days_before: 90, done: false },
         { label: "Register for MPRE", days_before: 60, done: false },
         { label: "Start MPRE prep (free Barbri/Themis course)", days_before: 30, done: false }
       ]
     },
     {
-      id: 2, name: "Indiana Bar Exam", date: "2028-07-25", tentative: true, status: "planned",
-      notes: "Indiana runs its own exam (not UBE as of last check) — verify format and dates on the Indiana Board of Law Examiners site during 3L.",
+      id: 2, name: "Bar exam", date: null, tentative: true, status: "planned",
+      notes: "Set your state's exam date, and verify format, deadlines, and any early-filing discounts on your state board's site during 3L.",
       lead_tasks: [
         { label: "Buy bar prep course (fall 3L discounts / payment plans)", days_before: 300, done: false },
-        { label: "Verify Indiana C&F early-filing discount window", days_before: 240, done: false },
+        { label: "Verify character & fitness deadlines / early-filing discount", days_before: 240, done: false },
         { label: "Submit bar application + character & fitness paperwork (slow — start early)", days_before: 150, done: false },
         { label: "Bar prep course begins", days_before: 60, done: false }
       ]
     },
     {
-      id: 3, name: "Degree application & graduation forms", date: "2028-02-01", tentative: true, status: "planned",
-      notes: "The school announces the real deadline — update this date when it's posted. Includes graduate information + employment surveys.",
+      id: 3, name: "Degree application & graduation forms", date: null, tentative: true, status: "planned",
+      notes: "The school announces the deadline — set this date when it's posted. Includes graduate information + employment surveys.",
       lead_tasks: [
         { label: "Watch registrar announcements for the official deadline", days_before: 60, done: false }
       ]
@@ -641,11 +648,17 @@ const SEED = {
   ],
   public_service_log: [],
   settings: {
+    onboarded: false,
+    matriculation: "Fall 2025",
     targetGrad: "Spring 2028",
     currentSemester: "Fall 2026",
+    onJournal: false,
+    ulwrSatisfied: false,
+    publicServiceDone: false,
     maxSemesterHours: 17,
     minSemesterHours: 12,
     _savedPlans: [],
+    _lrMigrated: true,
     study: {
       availability: {
         Mon: { evening: true }, Tue: { evening: true }, Wed: { evening: true },
@@ -655,22 +668,57 @@ const SEED = {
       startDate: "",
       plan: []
     },
-    studentOrgs: [
-      { id: 1, name: "Labor & Employment Law Society", role: "President", board: [], tasks: [], meetings: [] }
-    ]
+    studentOrgs: []
   }
 };
 
 /* =====================================================================
    REQUIREMENTS ENGINE — official Fall-2024+ graduation checklist
    ===================================================================== */
-const SEMESTER_ORDER = [
-  "Fall 2025", "Spring 2026", "Summer 2026",
-  "Fall 2026", "Spring 2027", "Summer 2027",
-  "Fall 2027", "Spring 2028", "Summer 2028"
-];
+let SEMESTER_ORDER = [];   // generated from settings.matriculation → settings.targetGrad
 const isSummer = s => /^Summer/.test(s);
 const semIdx = s => SEMESTER_ORDER.indexOf(s);
+const parseTerm = s => { const [t, y] = String(s || "").split(" "); return [t, Number(y)]; };
+
+function rebuildSemesters() {
+  const [t0, y0] = parseTerm(data.settings.matriculation || "Fall 2025");
+  const [tg, yg] = parseTerm(data.settings.targetGrad || "Spring 2028");
+  const next = ([t, y]) => t === "Fall" ? ["Spring", y + 1] : t === "Spring" ? ["Summer", y] : ["Fall", y];
+  SEMESTER_ORDER = [];
+  let cur = [t0 || "Fall", y0 || 2025];
+  for (let i = 0; i < 40; i++) {
+    SEMESTER_ORDER.push(cur.join(" "));
+    if (cur[0] === tg && cur[1] === yg) {
+      if (tg === "Spring") SEMESTER_ORDER.push(`Summer ${yg}`);   // trailing summer for late requirements
+      break;
+    }
+    cur = next(cur);
+  }
+}
+
+// The semester today's date falls in, clamped to the user's timeline.
+function computeCurrentSemester() {
+  const now = new Date();
+  const m = now.getMonth() + 1, y = now.getFullYear();
+  const term = m >= 8 ? "Fall" : m <= 5 ? "Spring" : "Summer";
+  const i = semIdx(`${term} ${y}`);
+  if (i !== -1) return SEMESTER_ORDER[i];
+  const key = s => { const [t, yy] = parseTerm(s); return yy * 3 + ({ Spring: 0, Summer: 1, Fall: 2 }[t] || 0); };
+  return key(`${term} ${y}`) < key(SEMESTER_ORDER[0]) ? SEMESTER_ORDER[0] : SEMESTER_ORDER[SEMESTER_ORDER.length - 1];
+}
+
+/* 1L curriculum — identical for every student, preloaded (no grades) at onboarding */
+const ONE_L_CURRICULUM = {
+  fall: [
+    { name: "Contracts", hours: 4 }, { name: "Torts", hours: 4 },
+    { name: "Lawyering Skills I", hours: 3 }, { name: "Civil Procedure", hours: 4 }
+  ],
+  spring: [
+    { name: "Criminal Law", hours: 3 }, { name: "Lawyering Skills II", hours: 3 },
+    { name: "Property", hours: 4 }, { name: "Professional Identity", hours: 1, pass_fail: true },
+    { name: "Constitutional Law I", hours: 4 }
+  ]
+};
 
 const REQUIREMENTS = {
   totalHours: 90,
@@ -694,8 +742,8 @@ const REQUIREMENTS = {
   pr: { label: "Professional Responsibility", minHours: 3 },
   perspective: { label: "Perspective course", minHours: 2, maxHours: 3 },
   experiential: { label: "Experiential", minHours: 6, liveClientMin: 2, liveClientMax: 6, simulationMax: 4 },
-  ulwr: { label: "ULWR", satisfied: true, via: "Law Review membership" },
-  publicService: { label: "Public service (30 hrs)", satisfied: true, via: "transcript milestone — completed" },
+  ulwr: { label: "ULWR" },              // satisfied via journal membership (settings.ulwrSatisfied) or a ulwr-tagged course
+  publicService: { label: "Public service", minHours: 30 },   // settings.publicServiceDone or logged hours
   limits: {
     combinedRestricted: 25,   // non-law + live client + moot court + independent study + journal
     online: 30,
@@ -745,16 +793,17 @@ function normalizeData(d) {
     public_service_log: Array.isArray(d.public_service_log) ? d.public_service_log : [],
     settings: Object.assign(seed.settings, d.settings || {})
   };
-  // one-time: add Law Review journal credits (2 hrs/semester, Vol 65) to data saved before they existed
-  if (!out.settings._lrMigrated) {
-    if (!out.courses.some(c => c.journal_credit)) {
-      const nid = out.courses.reduce((m, c) => Math.max(m, c.id), 0);
-      out.courses.push(
-        { id: nid + 1, name: "Law Review (Vol 65)", hours: 2, semester: "Fall 2026", status: "in_progress", buckets: [], journal_credit: true },
-        { id: nid + 2, name: "Law Review (Vol 65)", hours: 2, semester: "Spring 2027", status: "planned", buckets: [], journal_credit: true }
-      );
+  // Grandfather accounts populated before onboarding existed (2026-07-16) — i.e. Bri's:
+  // skip onboarding and keep the requirement state her data was built around.
+  if (!("onboarded" in (d.settings || {})) && Array.isArray(d.courses) && d.courses.length) {
+    out.settings.onboarded = true;
+    out.settings.matriculation = "Fall 2025";
+    out.settings.onJournal = true;
+    out.settings.ulwrSatisfied = true;
+    out.settings.publicServiceDone = true;
+    if (!(out.settings.studentOrgs || []).length) {
+      out.settings.studentOrgs = [{ id: 1, name: "Labor & Employment Law Society", role: "President", board: [], tasks: [], meetings: [] }];
     }
-    out.settings._lrMigrated = true;
   }
   return out;
 }
@@ -815,7 +864,7 @@ let _authMode = "signin";
 function toggleAuthMode() {
   _authMode = _authMode === "signin" ? "signup" : "signin";
   $("#auth-btn").textContent = _authMode === "signin" ? "Sign In" : "Sign Up";
-  $("#auth-subtitle").textContent = _authMode === "signin" ? "Sign in — same account as the Dinner Planner" : "Create your account";
+  $("#auth-subtitle").textContent = _authMode === "signin" ? "Sign in to sync your data across devices" : "Create your account";
   $("#auth-toggle-text").textContent = _authMode === "signin" ? "Don't have an account?" : "Already have an account?";
   $("#auth-toggle-link").textContent = _authMode === "signin" ? " Sign up" : " Sign in";
   $("#auth-err").textContent = ""; $("#auth-err").className = "auth-err";
@@ -899,11 +948,26 @@ function computeAudit(courses, settings) {
     { key: "expTotal", label: "Experiential — total", min: 6, t: tiers(c => isLiveClient(c) || isSimulation(c)), note: "Live client + simulation ≥ 6 hrs." }
   ];
 
-  // Non-course requirements
-  const satisfied = [
-    { label: "ULWR", via: REQUIREMENTS.ulwr.via },
-    { label: "Public service (30 hrs)", via: REQUIREMENTS.publicService.via }
-  ];
+  // Non-course requirements — settings-driven, not hardcoded
+  const satisfied = [];
+  if (settings.ulwrSatisfied) {
+    satisfied.push({ label: "ULWR", via: settings.onJournal ? "journal membership" : "marked satisfied" });
+  } else {
+    const countTiers = pred => ({
+      completed: completed.filter(pred).length,
+      inProgress: inProg.filter(pred).length,
+      planned: planned.filter(pred).length
+    });
+    buckets.push({ key: "ulwr", label: "ULWR (upper-level writing)", min: 1, unit: "course",
+      t: countTiers(c => inBucket(c, "ulwr")), note: "One ULWR-designated course — or journal membership." });
+  }
+  if (settings.publicServiceDone) {
+    satisfied.push({ label: "Public service (30 hrs)", via: "completed" });
+  } else {
+    const logHrs = (data.public_service_log || []).reduce((s, e) => s + (Number(e.hours) || 0), 0);
+    buckets.push({ key: "publicService", label: "Public service hours", min: 30,
+      t: { completed: logHrs, inProgress: 0, planned: 0 }, note: "Logged below." });
+  }
 
   // Pace math: remaining hours over remaining regular (non-summer) semesters
   const secured = total.completed + total.inProgress;
@@ -935,7 +999,8 @@ function computeAudit(courses, settings) {
   if (shortfall > 0) gaps.push(`${shortfall} more earned hrs needed to reach 90.`);
   for (const b of buckets.slice(1)) {
     const proj = projTotal(b.t);
-    if (proj < b.min) gaps.push(`${b.label}: ${b.min - proj} more hr${b.min - proj === 1 ? "" : "s"} needed (projected ${proj} of ${b.min}).`);
+    const unit = b.unit || "hr";
+    if (proj < b.min) gaps.push(`${b.label}: ${b.min - proj} more ${unit}${b.min - proj === 1 ? "" : "s"} needed (projected ${proj} of ${b.min}).`);
   }
   const lcProj = projTotal(tiers(isLiveClient));
   if (lcProj > REQUIREMENTS.experiential.liveClientMax)
@@ -958,6 +1023,7 @@ const el = (tag, cls, html) => {
 };
 const esc = s => String(s).replace(/[&<>"]/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
 const fmtHrs = n => (Math.round(n * 10) / 10).toString();
+const gradLabel = () => { const [t, y] = parseTerm(data.settings.targetGrad || ""); return y ? `${t === "Spring" ? "May" : "December"} ${y}` : "graduation"; };
 
 /* ---- icon set — Lucide-style inline SVGs, no emoji in UI chrome (see CLAUDE.md) ---- */
 const svgIcon = paths => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
@@ -1005,6 +1071,30 @@ function meterRow(b) {
   return row;
 }
 
+function psLogForm() {
+  const wrap = el("div", "ms-actions", "");
+  wrap.style.cssText = "border-top:1px solid var(--hairline);padding-top:8px;margin-top:4px";
+  for (const e of data.public_service_log || []) {
+    const row = el("span", null, `<span style="font-size:0.74rem;color:var(--ink-2)">${esc(fmtDate(e.date))} · ${fmtHrs(e.hours)} hrs${e.description ? " · " + esc(e.description) : ""}</span>`);
+    const rm = el("button", null, ICONS.x);
+    rm.style.cssText = "border:none;background:none;color:var(--muted);cursor:pointer";
+    rm.addEventListener("click", () => { data.public_service_log = data.public_service_log.filter(x => x !== e); persist(); renderAll(); });
+    row.append(rm);
+    wrap.append(row);
+  }
+  const d = document.createElement("input"); d.type = "date";
+  const h = document.createElement("input"); h.type = "number"; h.placeholder = "hrs"; h.min = 0.5; h.step = 0.5; h.style.width = "62px";
+  const desc = document.createElement("input"); desc.type = "text"; desc.placeholder = "What was it?"; desc.style.width = "150px";
+  const add = el("button", null, "Log public service");
+  add.addEventListener("click", () => {
+    if (!d.value || !Number(h.value)) return;
+    (data.public_service_log = data.public_service_log || []).push({ date: d.value, hours: Number(h.value), description: desc.value.trim() });
+    persist(); renderAll();
+  });
+  wrap.append(d, h, desc, add);
+  return wrap;
+}
+
 function warnItem(level, text) {
   const icons = { good: ICONS.checkCircle, warning: ICONS.alertTriangle, critical: ICONS.xCircle, info: ICONS.info };
   const li = el("li", "lvl-" + level);
@@ -1031,7 +1121,7 @@ function renderAudit() {
   tile("After this semester", fmtHrs(a.secured), `if ${data.settings.currentSemester} passes`);
   tile("Required pace", `${fmtHrs(a.pace)}<span style="font-size:0.9rem;color:var(--muted)"> hrs/sem</span>`,
     `${fmtHrs(a.remainingHrs)} hrs over ${a.remainingRegular.length} semesters` + (a.summerPlannedHrs ? ` (+${fmtHrs(a.summerPlannedHrs)} summer)` : ""));
-  tile("May 2028 verdict", a.onPace ? "On pace" : "Gaps",
+  tile(gradLabel() + " verdict", a.onPace ? "On pace" : "Gaps",
     a.onPace ? "current plan closes every requirement" : `${a.gaps.length} item${a.gaps.length === 1 ? "" : "s"} unresolved`,
     a.onPace ? "verdict-good" : "verdict-bad");
 
@@ -1046,6 +1136,7 @@ function renderAudit() {
     row.append(head);
     meters.append(row);
   }
+  if (!data.settings.publicServiceDone) meters.append(psLogForm());
 
   // Limits / warnings
   const warns = $("#audit-warnings");
@@ -1093,7 +1184,7 @@ function courseCard(c, opts = {}) {
   card.append(top);
   const chips = el("div", "chips");
   (c.buckets || []).forEach(b => chips.append(el("span", "chip" + (b === "core" ? " b-core" : ""),
-    esc({ "1L": "1L", core: "core", professional_responsibility: "PR", perspective: "perspective",
+    esc({ "1L": "1L", core: "core", professional_responsibility: "PR", perspective: "perspective", ulwr: "ULWR",
           experiential_live_client: "live client", experiential_simulation: "simulation" }[b] || b))));
   if (c.online) chips.append(el("span", "chip", "online"));
   if (c.pass_fail) chips.append(el("span", "chip", "pass/fail"));
@@ -1162,7 +1253,7 @@ function makeDropzone(node, semester) {
 function renderPlanner() {
   const a = computeAudit(data.courses, data.settings);
   $("#pace-banner").innerHTML =
-    `<strong>${a.onPace ? ICONS.checkCircle + " On pace for May 2028" : ICONS.alertTriangle + " Not yet — " + a.gaps.length + " gap" + (a.gaps.length === 1 ? "" : "s")}</strong>
+    `<strong>${a.onPace ? ICONS.checkCircle + " On pace for " + gradLabel() : ICONS.alertTriangle + " Not yet — " + a.gaps.length + " gap" + (a.gaps.length === 1 ? "" : "s")}</strong>
      &nbsp;·&nbsp; ${fmtHrs(a.remainingHrs)} hrs still needed after this semester → <strong>${fmtHrs(a.pace)} hrs/semester</strong>
      across ${a.remainingRegular.map(esc).join(", ")}${a.summerPlannedHrs ? ` (summer relieves ${fmtHrs(a.summerPlannedHrs)} hrs)` : ""}.
      ${a.gaps.length ? '<span style="color:var(--ink-2)">Missing: ' + a.gaps.map(esc).join(" ") + "</span>" : ""}`;
@@ -1241,7 +1332,7 @@ function catalogCard(spec) {
   if (spec.buckets && spec.buckets.length) {
     const chips = el("div", "chips");
     spec.buckets.forEach(b => chips.append(el("span", "chip" + (b === "core" ? " b-core" : ""),
-      esc({ core: "core", perspective: "perspective", experiential_simulation: "simulation", experiential_live_client: "live client" }[b] || b))));
+      esc({ core: "core", perspective: "perspective", ulwr: "ULWR", experiential_simulation: "simulation", experiential_live_client: "live client" }[b] || b))));
     card.append(chips);
   }
   card.draggable = true;
@@ -1348,7 +1439,7 @@ function renderCompare(pa, pb) {
     }).join("");
     return `<div class="card"><h3>${esc(p.name)}</h3>
       <p style="font-size:0.8rem;margin-bottom:8px;color:${a.onPace ? "var(--good-text)" : "var(--critical)"};font-weight:600">
-        ${a.onPace ? ICONS.checkCircle + " On pace for May 2028" : ICONS.xCircle + " " + a.gaps.length + " gap" + (a.gaps.length === 1 ? "" : "s")}
+        ${a.onPace ? ICONS.checkCircle + " On pace for " + gradLabel() : ICONS.xCircle + " " + a.gaps.length + " gap" + (a.gaps.length === 1 ? "" : "s")}
         · ${fmtHrs(a.projected)} projected hrs · pace ${fmtHrs(a.pace)}/sem</p>
       <table>${rows}</table>
       ${a.gaps.length ? `<p style="font-size:0.72rem;color:var(--ink-2);margin-top:6px">${a.gaps.map(esc).join("<br>")}</p>` : ""}
@@ -1923,7 +2014,7 @@ function renderAgendaShell(statusMsg) {
       <li>Go to <code>console.cloud.google.com</code> → create a project (name it anything, e.g. "Law School App").</li>
       <li>APIs &amp; Services → Library → search <strong>Google Calendar API</strong> → Enable.</li>
       <li><strong>Google Auth Platform</strong> → Get started: app name + your email → Audience: <strong>External</strong> → contact email → agree → Create.</li>
-      <li>Google Auth Platform → <strong>Audience</strong> → Test users → <strong>+ Add users</strong> → <code>brieespo@gmail.com</code>.</li>
+      <li>Google Auth Platform → <strong>Audience</strong> → Test users → <strong>+ Add users</strong> → your Gmail address (the one that owns your calendars).</li>
       <li>Google Auth Platform → <strong>Clients</strong> → + Create client → <strong>Web application</strong>. Under "Authorized JavaScript origins" add <code>https://brieespo.github.io</code>.</li>
       <li>Copy the client ID (ends in <code>.apps.googleusercontent.com</code>) and paste it here:</li>
     </ol>
@@ -2237,6 +2328,63 @@ function addOrg() {
 }
 
 /* =====================================================================
+   ONBOARDING — first-run setup: cohort → semester timeline + 1L preload
+   ===================================================================== */
+function obFillStartOptions() {
+  const sel = $("#ob-start");
+  if (sel.options.length) return;
+  const y = new Date().getFullYear();
+  for (let yy = y + 1; yy >= y - 3; yy--) {
+    const o = document.createElement("option");
+    o.value = `Fall ${yy}`; o.textContent = `Fall ${yy}`;
+    if (yy === y) o.selected = true;
+    sel.append(o);
+  }
+  obFillGradOptions();
+}
+function obFillGradOptions() {
+  const [, y0] = parseTerm($("#ob-start").value);
+  const sel = $("#ob-grad");
+  sel.innerHTML = "";
+  for (const [term, y, note] of [
+    ["Spring", y0 + 3, "standard 3-year"],
+    ["Fall", y0 + 2, "accelerated (Dec)"],
+    ["Fall", y0 + 3, ""],
+    ["Spring", y0 + 4, ""]
+  ]) {
+    const o = document.createElement("option");
+    o.value = `${term} ${y}`;
+    o.textContent = `${term === "Spring" ? "May" : "December"} ${y}${note ? ` — ${note}` : ""}`;
+    sel.append(o);
+  }
+}
+function completeOnboarding() {
+  const s = data.settings;
+  s.matriculation = $("#ob-start").value;
+  s.targetGrad = $("#ob-grad").value;
+  s.onJournal = $("#ob-journal").checked;
+  s.ulwrSatisfied = s.onJournal;
+  s.publicServiceDone = $("#ob-ps").checked;
+  rebuildSemesters();
+  s.currentSemester = computeCurrentSemester();
+  if (!data.courses.length) {
+    const [, y0] = parseTerm(s.matriculation);
+    const statusFor = sem => semIdx(sem) < semIdx(s.currentSemester) ? "completed"
+      : semIdx(sem) === semIdx(s.currentSemester) ? "in_progress" : "planned";
+    let id = 1;
+    const add = (list, sem) => list.forEach(c => data.courses.push({
+      id: id++, name: c.name, hours: c.hours, semester: sem, status: statusFor(sem),
+      buckets: ["1L"], ...(c.pass_fail ? { pass_fail: true } : {})
+    }));
+    add(ONE_L_CURRICULUM.fall, s.matriculation);
+    add(ONE_L_CURRICULUM.spring, `Spring ${y0 + 1}`);
+  }
+  s.onboarded = true;
+  persist();
+  renderAll();
+}
+
+/* =====================================================================
    NAV, FOOTER, INIT
    ===================================================================== */
 function showView(name) {
@@ -2248,7 +2396,7 @@ $("#tabs").addEventListener("click", e => {
   if (btn) showView(btn.dataset.view);
 });
 $("#reset-seed").addEventListener("click", () => {
-  if (!confirm("Reset everything to the seed transcript? Saved scenarios are lost too.")) return;
+  if (!confirm("Reset to a blank tracker? This wipes courses, milestones, and plans — and if you're signed in, your synced account data too. Consider Export first.")) return;
   localStorage.removeItem(STORE_KEY);
   data = store.load();
   persist();
@@ -2294,6 +2442,23 @@ function fillSemesterSelect() {
 }
 
 function renderAll() {
+  rebuildSemesters();
+  fillSemesterSelect();
+
+  // first-run onboarding (auth overlay sits above it until sign-in/guest resolves)
+  $("#onboard-overlay").classList.toggle("hidden", !!data.settings.onboarded);
+  if (!data.settings.onboarded) obFillStartOptions();
+
+  // Law Review layer only for journal members
+  const onJournal = !!data.settings.onJournal;
+  $('#tabs button[data-view="notes"]').style.display = onJournal ? "" : "none";
+  $("#note-banner").style.display = onJournal ? "" : "none";
+  if (!onJournal && $("#view-notes").classList.contains("active")) showView("audit");
+
+  const [gt, gy] = parseTerm(data.settings.targetGrad || "");
+  $("#header-sub").textContent = "Brandeis School of Law" + (gy ? ` · target ${gt === "Spring" ? "May" : "December"} ${gy}` : "");
+  $("#legend-current-sem").textContent = data.settings.currentSemester;
+
   renderAudit();
   renderPlanner();
   renderCourses();
@@ -2306,7 +2471,6 @@ function renderAll() {
 $("#study-start").addEventListener("change", e => { studySettings().startDate = e.target.value; persist(); });
 const rememberedEmail = localStorage.getItem("ls-remembered-email");
 if (rememberedEmail) { $("#auth-email").value = rememberedEmail; $("#auth-remember").checked = true; }
-fillSemesterSelect();
 renderAll();
 </script>
 </body>
