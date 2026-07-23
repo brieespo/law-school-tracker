@@ -354,6 +354,14 @@ button.ghost:hover, .scenario-bar button:hover { border-color: var(--accent); }
 #onboard-overlay { position: fixed; inset: 0; background: var(--page); z-index: 90; display: flex; align-items: center; justify-content: center; padding: 1rem; overflow-y: auto; }
 #onboard-overlay.hidden { display: none; }
 #onboard-overlay .auth-field select { width: 100%; font: inherit; font-size: 0.85rem; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--page); color: var(--ink); }
+#syllabus-review-overlay { position: fixed; inset: 0; background: rgba(11,11,11,0.5); z-index: 95; display: flex; align-items: center; justify-content: center; padding: 1rem; overflow-y: auto; }
+#syllabus-review-overlay.hidden { display: none; }
+#syl-course-select { width: 100%; font: inherit; font-size: 0.85rem; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--page); color: var(--ink); }
+.syl-row { display: flex; gap: 8px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--hairline); flex-wrap: wrap; }
+.syl-row input[type="text"], .syl-row input[type="date"], .syl-row select { font: inherit; font-size: 0.78rem; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
+.syl-row input[type="text"] { flex: 1; min-width: 140px; }
+.syl-row.unchecked { opacity: 0.45; }
+.syl-empty { font-size: 0.78rem; color: var(--muted); padding: 4px 0; }
 .auth-box { max-width: 340px; width: 100%; text-align: center; }
 .auth-box .auth-logo { width: 2rem; height: 2rem; color: var(--accent); }
 .auth-box h2 { margin: 6px 0 2px; }
@@ -418,6 +426,38 @@ footer button { font: inherit; font-size: 0.72rem; border: none; background: non
     <label class="auth-remember"><input type="checkbox" id="ob-ps"> My 30 public service hours are already completed</label>
     <button class="primary" onclick="completeOnboarding()">Build my tracker</button>
     <p style="font-size:0.72rem;color:var(--muted);margin-top:10px">The 1L curriculum is preloaded into the right semesters based on your start date. Add grades (private to your account) and upper-level courses on the Courses tab.</p>
+  </div>
+</div>
+
+<div id="syllabus-review-overlay" class="hidden">
+  <div class="auth-box card" style="max-width:700px;text-align:left;max-height:85vh;overflow-y:auto">
+    <h2 style="margin-bottom:2px">Review syllabus import</h2>
+    <p class="auth-sub" style="margin-bottom:12px">Nothing is saved until you commit. Uncheck anything wrong, or fix a title/date inline.</p>
+
+    <div class="auth-field">
+      <label>Which course is this?</label>
+      <select id="syl-course-select" style="width:100%"></select>
+    </div>
+
+    <div id="syl-assignments-section">
+      <h3 style="margin-top:14px">Dated assignments</h3>
+      <div id="syl-assignments-list"></div>
+    </div>
+    <div id="syl-patterns-section">
+      <h3 style="margin-top:14px">Recurring patterns</h3>
+      <p style="font-size:0.72rem;color:var(--muted);margin-bottom:4px">Saved as course notes — not expanded into individual dates.</p>
+      <div id="syl-patterns-list"></div>
+    </div>
+    <div id="syl-notes-section">
+      <h3 style="margin-top:14px">Other notes</h3>
+      <div id="syl-notes-list"></div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="primary" id="syl-commit-btn" style="padding:8px 16px;border-radius:8px;cursor:pointer">Commit selected</button>
+      <button class="ghost" id="syl-cancel-btn" style="padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--ink);cursor:pointer">Cancel</button>
+    </div>
+    <p id="syl-commit-status" style="font-size:0.76rem;color:var(--ink-2);margin-top:8px"></p>
   </div>
 </div>
 
@@ -509,7 +549,7 @@ footer button { font: inherit; font-size: 0.72rem; border: none; background: non
         <button class="primary" style="font:inherit;font-size:0.78rem;padding:6px 12px;border-radius:8px;cursor:pointer" onclick="syncToGoogle()">Sync to Google Calendar</button>
         <span id="ms-sync-status"></span>
       </div>
-      <p style="font-size:0.76rem;color:var(--muted);margin-bottom:12px">Dates marked <span class="chip tentative">confirm date</span> are placeholders — official dates are entered by you, never assumed. Sync creates an app-owned "Law School App" calendar and (re)writes milestone reminders plus your upcoming study blocks into it; your own calendars are never touched.</p>
+      <p style="font-size:0.76rem;color:var(--muted);margin-bottom:12px">Dates marked <span class="chip tentative">confirm date</span> are placeholders — official dates are entered by you, never assumed. Sync creates an app-owned "Law School App" calendar and (re)writes milestone reminders, upcoming study blocks, and upcoming syllabus assignments (Courses tab) into it; your own calendars are never touched.</p>
       <div id="ms-list"></div>
       <div class="ms-actions" style="border-top:1px solid var(--hairline);padding-top:10px">
         <strong style="font-size:0.78rem">Add milestone:</strong>
@@ -606,6 +646,9 @@ footer button { font: inherit; font-size: 0.72rem; border: none; background: non
     <div class="card">
       <div class="courses-toolbar">
         <span>Every course on the transcript or plan. Completed courses are locked facts; the pending Fall 2026 drop is one tap on the card's status.</span>
+        <button class="primary" id="import-syllabus-btn" style="font:inherit;font-size:0.78rem;padding:6px 12px;border-radius:8px;cursor:pointer">Import syllabus</button>
+        <input type="file" id="syllabus-file-input" accept="application/pdf" style="display:none">
+        <span id="syllabus-import-status" style="font-size:0.76rem;color:var(--ink-2)"></span>
       </div>
       <div id="courses-list"></div>
       <h3 style="margin-top:16px">Add course</h3>
@@ -1503,9 +1546,66 @@ function renderCourses() {
     const grp = el("div", "sem-group");
     const items = groups.get(key);
     grp.append(el("h3", null, `${esc(key)} — ${fmtHrs(hoursOf(items.filter(c => c.status !== "dropped")))} hrs`));
-    for (const c of items) grp.append(courseRow(c));
+    for (const c of items) grp.append(courseRowWrap(c));
     list.append(grp);
   }
+}
+const expandedCourses = new Set();
+function courseRowWrap(c) {
+  const wrap = el("div");
+  wrap.append(courseRow(c));
+  const extraCount = (c.assignments || []).length + (c.notes || []).length;
+  if (extraCount || expandedCourses.has(c.id)) {
+    if (extraCount) wrap.append(courseExtrasPanel(c));
+  }
+  return wrap;
+}
+function courseExtrasToggle(c) {
+  const extraCount = (c.assignments || []).length + (c.notes || []).length;
+  if (!extraCount) return null;
+  const btn = el("span", "chip", `${ICONS.chevronDown} ${extraCount} item${extraCount === 1 ? "" : "s"}`);
+  btn.style.cssText += "cursor:pointer";
+  btn.addEventListener("click", () => {
+    if (expandedCourses.has(c.id)) expandedCourses.delete(c.id); else expandedCourses.add(c.id);
+    renderCourses();
+  });
+  return btn;
+}
+function courseExtrasPanel(c) {
+  const panel = el("div", "org-blocks");
+  panel.style.cssText = "display:block;margin:0 0 10px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface)";
+  if (!expandedCourses.has(c.id)) { panel.style.display = "none"; }
+
+  if ((c.assignments || []).length) {
+    panel.append(el("h3", null, "Assignments"));
+    const today = isoDay(new Date());
+    for (const a of [...c.assignments].sort((x, y) => (x.due_date || "9999").localeCompare(y.due_date || "9999"))) {
+      const overdue = a.due_date < today;
+      const row = el("div", "ms-task" + (overdue ? " overdue" : ""));
+      row.append(el("span", "mt-date", fmtDate(a.due_date)));
+      row.append(el("span", "mt-label", esc(a.title)));
+      row.append(el("span", "chip", esc(a.type)));
+      const rm = el("button", null, ICONS.x);
+      rm.style.cssText = "border:none;background:none;color:var(--muted);cursor:pointer";
+      rm.addEventListener("click", () => { c.assignments = c.assignments.filter(x => x.id !== a.id); persist(); renderCourses(); });
+      row.append(rm);
+      panel.append(row);
+    }
+  }
+  if ((c.notes || []).length) {
+    panel.append(el("h3", null, "Notes"));
+    for (const n of c.notes) {
+      const row = el("div", "ms-task");
+      row.append(el("span", "chip", esc((n.category || "").replace("_", " "))));
+      row.append(el("span", "mt-label", esc(n.text)));
+      const rm = el("button", null, ICONS.x);
+      rm.style.cssText = "border:none;background:none;color:var(--muted);cursor:pointer";
+      rm.addEventListener("click", () => { c.notes = c.notes.filter(x => x.id !== n.id); persist(); renderCourses(); });
+      row.append(rm);
+      panel.append(row);
+    }
+  }
+  return panel;
 }
 function courseRow(c) {
   const locked = c.status === "completed";
@@ -1542,6 +1642,8 @@ function courseRow(c) {
   if (c.pass_fail) chips.append(el("span", "chip", "pass/fail"));
   if (c.journal_credit) chips.append(el("span", "chip", "journal"));
   if (isLiveClient(c)) chips.append(el("span", "chip", "live client"));
+  const extrasToggle = courseExtrasToggle(c);
+  if (extrasToggle) chips.append(extrasToggle);
   row.append(chips);
 
   const del = el("div", "row-del");
@@ -2204,6 +2306,14 @@ async function syncToGoogle() {
         events.push({ summary: "⚖️ " + t.label, start: { date: d }, end: { date: addDays(d, 1) }, description: `Lead task for ${m.name} (${fmtDate(m.date)})` });
       }
     }
+    const today0 = isoDay(new Date());
+    for (const c of data.courses) {
+      if (c.status === "dropped") continue;
+      for (const a of c.assignments || []) {
+        if (a.due_date < today0) continue;
+        events.push({ summary: `📄 ${c.name} — ${a.title}`, start: { date: a.due_date }, end: { date: addDays(a.due_date, 1) }, description: `${a.type} · from syllabus import` });
+      }
+    }
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const today = isoDay(new Date());
     for (const b of studySettings().plan || []) {
@@ -2668,6 +2778,171 @@ function addOrg() {
   $("#org-new-name").value = ""; $("#org-new-role").value = "";
   persist(); renderOrgs();
 }
+
+/* =====================================================================
+   SYLLABUS IMPORT — upload a PDF, review/edit the extraction, commit.
+   Nothing is written to data until "Commit selected". Calls the
+   parse-syllabus edge function (same auth pattern as the assistant
+   function); dated assignments ride along on the next Google Calendar
+   sync via the existing app-owned-calendar mechanism.
+   ===================================================================== */
+let syllabusReview = null;   // { assignments, patterns, notes } while the overlay is open
+
+function syllabusStatus(msg) { $("#syllabus-import-status").textContent = msg; }
+
+$("#import-syllabus-btn").addEventListener("click", () => {
+  if (!currentUser || guestMode) { syllabusStatus("Sign in to use syllabus import."); return; }
+  $("#syllabus-file-input").click();
+});
+$("#syllabus-file-input").addEventListener("change", async () => {
+  const file = $("#syllabus-file-input").files[0];
+  $("#syllabus-file-input").value = "";
+  if (!file) return;
+  if (file.type !== "application/pdf") { syllabusStatus("Please choose a PDF."); return; }
+  if (file.size > 18 * 1024 * 1024) { syllabusStatus("PDF is too large (max ~18MB)."); return; }
+
+  syllabusStatus("Reading file…");
+  const dataUrl = await new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+  const pdfBase64 = dataUrl.split(",")[1];
+
+  syllabusStatus("Extracting with Claude… this can take a bit for a long syllabus.");
+  try {
+    const { data: result, error } = await sb.functions.invoke("parse-syllabus", { body: { pdfBase64 } });
+    if (error) throw error;
+    if (result?.error) throw new Error(result.error);
+    openSyllabusReview(result);
+    syllabusStatus("");
+  } catch (e) {
+    console.error("syllabus import failed", e);
+    syllabusStatus("Import failed: " + (e.message || "unknown error"));
+  }
+});
+
+function openSyllabusReview(extracted) {
+  syllabusReview = {
+    assignments: (extracted.assignments || []).map((a, i) => ({ id: i, checked: true, ...a })),
+    patterns: (extracted.recurring_patterns || []).map((p, i) => ({ id: i, checked: true, ...p })),
+    notes: (extracted.notes || []).map((n, i) => ({ id: i, checked: true, ...n })),
+  };
+
+  const sel = $("#syl-course-select");
+  sel.innerHTML = '<option value="">— choose the matching course —</option>';
+  const guess = (extracted.course_name_guess || "").toLowerCase();
+  let bestId = "";
+  for (const c of data.courses.filter(x => x.status !== "dropped")) {
+    const o = document.createElement("option");
+    o.value = c.id; o.textContent = `${c.name} — ${c.semester || "unscheduled"}`;
+    sel.append(o);
+    if (guess && c.name.toLowerCase().includes(guess.split(/[—-]/)[0].trim())) bestId = c.id;
+  }
+  if (bestId) sel.value = bestId;
+
+  renderSyllabusReview();
+  $("#syllabus-review-overlay").classList.remove("hidden");
+}
+
+function renderSyllabusReview() {
+  const r = syllabusReview;
+
+  const aBox = $("#syl-assignments-list");
+  aBox.innerHTML = "";
+  if (!r.assignments.length) aBox.append(el("p", "syl-empty", "No dated assignments found."));
+  for (const a of r.assignments) {
+    const row = el("div", "syl-row" + (a.checked ? "" : " unchecked"));
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.checked = a.checked;
+    cb.addEventListener("change", () => { a.checked = cb.checked; renderSyllabusReview(); });
+    const title = orgInput("text", a.title, "Title", v => { a.title = v.trim(); });
+    const date = orgInput("date", a.due_date, "", v => { a.due_date = v; });
+    const type = document.createElement("select");
+    for (const t of ["reading", "paper", "exam", "other"]) {
+      const o = document.createElement("option"); o.value = t; o.textContent = t;
+      if (a.type === t) o.selected = true;
+      type.append(o);
+    }
+    type.addEventListener("change", () => { a.type = type.value; });
+    row.append(cb, title, date, type);
+    aBox.append(row);
+  }
+
+  const pBox = $("#syl-patterns-list");
+  pBox.innerHTML = "";
+  if (!r.patterns.length) pBox.append(el("p", "syl-empty", "None found."));
+  for (const p of r.patterns) {
+    const row = el("div", "syl-row" + (p.checked ? "" : " unchecked"));
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.checked = p.checked;
+    cb.addEventListener("change", () => { p.checked = cb.checked; renderSyllabusReview(); });
+    const text = orgInput("text", p.description, "Pattern", v => { p.description = v.trim(); });
+    row.append(cb, text);
+    pBox.append(row);
+  }
+
+  const nBox = $("#syl-notes-list");
+  nBox.innerHTML = "";
+  if (!r.notes.length) nBox.append(el("p", "syl-empty", "None found."));
+  for (const n of r.notes) {
+    const row = el("div", "syl-row" + (n.checked ? "" : " unchecked"));
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.checked = n.checked;
+    cb.addEventListener("change", () => { n.checked = cb.checked; renderSyllabusReview(); });
+    const cat = document.createElement("select");
+    for (const c of ["exam_format", "policy", "participation", "grading", "other"]) {
+      const o = document.createElement("option"); o.value = c; o.textContent = c.replace("_", " ");
+      if (n.category === c) o.selected = true;
+      cat.append(o);
+    }
+    cat.addEventListener("change", () => { n.category = cat.value; });
+    const text = orgInput("text", n.text, "Note", v => { n.text = v.trim(); });
+    row.append(cb, cat, text);
+    nBox.append(row);
+  }
+}
+
+function closeSyllabusReview() {
+  syllabusReview = null;
+  $("#syllabus-review-overlay").classList.add("hidden");
+}
+$("#syl-cancel-btn").addEventListener("click", closeSyllabusReview);
+
+$("#syl-commit-btn").addEventListener("click", () => {
+  const courseId = Number($("#syl-course-select").value);
+  const status = $("#syl-commit-status");
+  if (!courseId) { status.textContent = "Pick which course this syllabus belongs to first."; return; }
+  const course = data.courses.find(c => c.id === courseId);
+  if (!course) { status.textContent = "That course no longer exists — pick another."; return; }
+
+  course.assignments = course.assignments || [];
+  course.notes = course.notes || [];
+  let assignmentsAdded = 0, notesAdded = 0;
+
+  for (const a of syllabusReview.assignments) {
+    if (!a.checked || !a.title.trim() || !a.due_date) continue;
+    course.assignments.push({ id: nextSubId(course.assignments), title: a.title.trim(), due_date: a.due_date, type: a.type, source: "syllabus" });
+    assignmentsAdded++;
+  }
+  for (const p of syllabusReview.patterns) {
+    if (!p.checked || !p.description.trim()) continue;
+    course.notes.push({ id: nextSubId(course.notes), category: "pattern", text: p.description.trim() });
+    notesAdded++;
+  }
+  for (const n of syllabusReview.notes) {
+    if (!n.checked || !n.text.trim()) continue;
+    course.notes.push({ id: nextSubId(course.notes), category: n.category, text: n.text.trim() });
+    notesAdded++;
+  }
+
+  persist();
+  closeSyllabusReview();
+  renderCourses();
+  syllabusStatus(`Added ${assignmentsAdded} assignment${assignmentsAdded === 1 ? "" : "s"} and ${notesAdded} note${notesAdded === 1 ? "" : "s"} to ${course.name}.` +
+    (assignmentsAdded ? " Hit Sync on the Milestones tab to push the dated ones to Google Calendar." : ""));
+});
 
 /* =====================================================================
    ONBOARDING — first-run setup: cohort → semester timeline + 1L preload

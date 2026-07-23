@@ -55,9 +55,29 @@ Dinner-planner pattern: one row per user in `law_school_data` with jsonb columns
   status: "planned",              // 'completed' | 'in_progress' | 'planned'
   grade: null,                    // optional
   buckets: ["core"],              // which requirement buckets it satisfies (see engine below)
-  live_client: false, online: false, non_law: false, independent_study: false, journal_credit: false
+  live_client: false, online: false, non_law: false, independent_study: false, journal_credit: false,
+  assignments: [                  // optional — populated by syllabus import or added manually
+    { id: 1, title: "Midterm Exam", due_date: "2026-10-01", type: "exam", source: "syllabus" }
+    // type: 'reading' | 'paper' | 'exam' | 'other'. Dated assignments with a due_date ride
+    // along on the next Google Calendar sync (see Syllabus import below).
+  ],
+  notes: [                        // optional — undated course info + recurring patterns, same array
+    { id: 1, category: "exam_format", text: "Closed book, 3 hours, IRAC essay format" },
+    { id: 2, category: "pattern", text: "Reading assignment due before each class" }
+    // category: 'exam_format' | 'policy' | 'participation' | 'grading' | 'pattern' | 'other'.
+    // 'pattern' = a recurring obligation captured as one rule, never expanded into dated rows.
+  ]
 }
 ```
+
+### Syllabus import (Courses screen)
+
+Upload a syllabus PDF and get back structured data via a Supabase edge function, then review/edit before anything is saved:
+
+1. Client base64-encodes the PDF and calls the `parse-syllabus` edge function (`supabase/functions/parse-syllabus/`) — same auth + `ANTHROPIC_API_KEY` pattern as the `assistant` function (Supabase secrets, `ALLOWED_EMAIL`-gated: currently Bri only, since the project's Auth is shared across every sibling app). Model: `claude-sonnet-5` — syllabi are messy and worth the extraction accuracy over Haiku.
+2. The function sends the PDF to Claude with a forced tool call (`emit_syllabus`) that returns three things: dated `assignments` (title/due_date/type), `recurring_patterns` (captured as one rule each — "reading before each class" is never expanded into per-class rows), and undated `notes` (exam format, policies, participation weight, categorized).
+3. Results render in a review screen: an editable checklist per section — fix a title or date inline, uncheck anything wrong, pick which existing course the syllabus belongs to. **Nothing writes to `law_school_data` until "Commit selected."**
+4. On commit: checked assignments go into that course's `assignments` array; checked patterns and notes both land in `notes` (patterns tagged `category: "pattern"`). Dated assignments are picked up automatically the next time Milestones → Sync to Google Calendar runs (same app-owned-calendar wipe-and-rewrite mechanism used for milestones and study blocks — no separate write path).
 
 ### Requirements engine (seed data — from the official checklist)
 
@@ -132,6 +152,7 @@ Phase 3 upgrade: write study blocks to the app-owned Google Calendar alongside m
 4. **Study Planner** — availability grid, finals-mode generator, outline tracker (above).
 5. **Milestones** — timeline view from today through bar exam, with lead tasks and (Phase 2) push-to-Google-Calendar.
 6. **Note Tracker** — the stage stepper above.
+7. **Courses** — the full transcript + plan with one-tap status changes, plus **syllabus import**: upload a PDF, review the extracted assignments/patterns/notes, commit into the matching course (see Data model above). Each course row expands to show its assignments and notes with delete buttons.
 
 ## Seed data: transcript
 
