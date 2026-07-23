@@ -221,6 +221,26 @@ button.ghost:hover, .scenario-bar button:hover { border-color: var(--accent); }
 .form-grid { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
 .form-grid label { font-size: 0.75rem; color: var(--ink-2); display: flex; align-items: center; gap: 4px; }
 .courses-toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; font-size: 0.8rem; color: var(--ink-2); }
+.audit-links { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.audit-link-btn { font: inherit; font-size: 0.8rem; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); cursor: pointer; }
+.audit-link-btn:hover { border-color: var(--accent); }
+.subview-back { font: inherit; font-size: 0.8rem; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink-2); cursor: pointer; margin-bottom: 12px; }
+.subview-back:hover { color: var(--ink); border-color: var(--accent); }
+/* This Semester course cards */
+.sem-card { border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 14px; background: var(--surface); box-shadow: var(--shadow); }
+.sem-card-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.sem-card-head .sc-name { font-size: 1rem; font-weight: 650; }
+.sem-card-head .sc-hrs { font-size: 0.74rem; color: var(--muted); }
+.sem-exam { font-size: 0.74rem; font-weight: 600; }
+.sem-exam.soon { color: var(--serious); }
+.sem-field { margin: 10px 0; }
+.sem-field label { display: block; font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 3px; }
+.sem-field input.sem-inline { width: 100%; font: inherit; font-size: 0.82rem; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--page); color: var(--ink); }
+.sem-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .sem-cols { grid-template-columns: 1fr; } }
+.sem-sub { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; margin: 4px 0; }
+.sem-note-line { font-size: 0.8rem; padding: 3px 0; display: flex; gap: 6px; align-items: baseline; }
+.sem-note-line .chip { flex: none; }
 
 /* ---- agenda ---- */
 .agenda-grid { display: grid; grid-template-columns: 1fr 280px; gap: 16px; align-items: start; }
@@ -471,12 +491,11 @@ footer button { font: inherit; font-size: 0.72rem; border: none; background: non
   </div>
   <nav class="tabs" id="tabs">
     <button data-view="agenda">Agenda</button>
+    <button data-view="semester">This Semester</button>
     <button data-view="audit" class="active">Degree Audit</button>
     <button data-view="planner">Semester Planner</button>
-    <button data-view="courses">Courses</button>
     <button data-view="notes">Law Review</button>
     <button data-view="study">Study Planner</button>
-    <button data-view="milestones">Milestones</button>
     <button data-view="orgs">Student Orgs</button>
   </nav>
 </header>
@@ -498,6 +517,20 @@ footer button { font: inherit; font-size: 0.72rem; border: none; background: non
         <button class="ghost" style="margin-top:10px;font:inherit;font-size:0.78rem;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--ink);display:inline-flex;align-items:center;gap:5px" onclick="refreshAgenda()"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Refresh</button>
       </div>
     </div>
+  </section>
+
+  <!-- ============ THIS SEMESTER ============ -->
+  <section class="view" id="view-semester">
+    <div class="card">
+      <div class="courses-toolbar">
+        <h2 style="margin:0" id="semester-title">This Semester</h2>
+        <button class="primary" id="import-syllabus-btn" style="font:inherit;font-size:0.78rem;padding:6px 12px;border-radius:8px;cursor:pointer">Import syllabus</button>
+        <input type="file" id="syllabus-file-input" accept="application/pdf" style="display:none">
+        <span id="syllabus-import-status" style="font-size:0.76rem;color:var(--ink-2)"></span>
+      </div>
+      <p style="font-size:0.76rem;color:var(--muted);margin:4px 0 4px">Your in-progress courses at a glance — assignments, exam format, attendance, and outline status. Import a syllabus to fill a course in automatically.</p>
+    </div>
+    <div id="semester-cards"></div>
   </section>
 
   <!-- ============ NOTE TRACKER ============ -->
@@ -543,13 +576,14 @@ footer button { font: inherit; font-size: 0.72rem; border: none; background: non
 
   <!-- ============ MILESTONES ============ -->
   <section class="view" id="view-milestones">
+    <button class="ghost subview-back" onclick="showView('audit')">← Degree Audit</button>
     <div class="card">
       <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
         <h2 style="margin:0">Milestones — today through the bar</h2>
         <button class="primary" style="font:inherit;font-size:0.78rem;padding:6px 12px;border-radius:8px;cursor:pointer" onclick="syncToGoogle()">Sync to Google Calendar</button>
         <span id="ms-sync-status"></span>
       </div>
-      <p style="font-size:0.76rem;color:var(--muted);margin-bottom:12px">Dates marked <span class="chip tentative">confirm date</span> are placeholders — official dates are entered by you, never assumed. Sync creates three app-owned calendars — <strong>Law School — Milestones</strong>, <strong>— Assignments</strong> (from the Courses tab), and <strong>— Study Blocks</strong> — and (re)writes each into its own, so you can color and hide them separately in Google Calendar. Your own calendars are never touched.</p>
+      <p style="font-size:0.76rem;color:var(--muted);margin-bottom:12px">Dates marked <span class="chip tentative">confirm date</span> are placeholders — official dates are entered by you, never assumed. Sync creates three app-owned calendars — <strong>Law School — Milestones</strong>, <strong>— Assignments</strong> (from your courses), and <strong>— Study Blocks</strong> — and (re)writes each into its own, so you can color and hide them separately in Google Calendar. Your own calendars are never touched.</p>
       <div id="ms-list"></div>
       <div class="ms-actions" style="border-top:1px solid var(--hairline);padding-top:10px">
         <strong style="font-size:0.78rem">Add milestone:</strong>
@@ -578,6 +612,10 @@ footer button { font: inherit; font-size: 0.72rem; border: none; background: non
   <!-- ============ DEGREE AUDIT ============ -->
   <section class="view active" id="view-audit">
     <div class="tiles" id="audit-tiles"></div>
+    <div class="audit-links">
+      <button class="ghost audit-link-btn" onclick="showView('courses')">All courses &amp; transcript →</button>
+      <button class="ghost audit-link-btn" onclick="showView('milestones')">Milestones &amp; bar timeline →</button>
+    </div>
     <div class="audit-grid">
       <div class="card">
         <h2>Requirement buckets</h2>
@@ -643,12 +681,10 @@ footer button { font: inherit; font-size: 0.72rem; border: none; background: non
 
   <!-- ============ COURSES ============ -->
   <section class="view" id="view-courses">
+    <button class="ghost subview-back" onclick="showView('audit')">← Degree Audit</button>
     <div class="card">
       <div class="courses-toolbar">
-        <span>Every course on the transcript or plan. Completed courses are locked facts; the pending Fall 2026 drop is one tap on the card's status.</span>
-        <button class="primary" id="import-syllabus-btn" style="font:inherit;font-size:0.78rem;padding:6px 12px;border-radius:8px;cursor:pointer">Import syllabus</button>
-        <input type="file" id="syllabus-file-input" accept="application/pdf" style="display:none">
-        <span id="syllabus-import-status" style="font-size:0.76rem;color:var(--ink-2)"></span>
+        <span>Every course on the transcript or plan. Completed courses are locked facts; status and grades edit here. Syllabus import lives on the This Semester tab.</span>
       </div>
       <div id="courses-list"></div>
       <h3 style="margin-top:16px">Add course</h3>
@@ -2967,17 +3003,27 @@ $("#syl-commit-btn").addEventListener("click", () => {
     course.notes.push({ id: nextSubId(course.notes), category: "pattern", text: p.description.trim() });
     notesAdded++;
   }
+  let attendanceSet = false;
   for (const n of syllabusReview.notes) {
     if (!n.checked || !n.text.trim()) continue;
-    course.notes.push({ id: nextSubId(course.notes), category: n.category, text: n.text.trim() });
+    const t = n.text.trim();
+    // An extracted note that's clearly about attendance fills the dedicated
+    // card field instead of becoming a generic note (first match only).
+    if (!course.attendance_policy && /attendance/i.test(t)) {
+      course.attendance_policy = t;
+      attendanceSet = true;
+      continue;
+    }
+    course.notes.push({ id: nextSubId(course.notes), category: n.category, text: t });
     notesAdded++;
   }
 
   persist();
   closeSyllabusReview();
+  renderThisSemester();
   renderCourses();
-  syllabusStatus(`Added ${assignmentsAdded} assignment${assignmentsAdded === 1 ? "" : "s"} and ${notesAdded} note${notesAdded === 1 ? "" : "s"} to ${course.name}.` +
-    (assignmentsAdded ? " Hit Sync on the Milestones tab to push the dated ones to Google Calendar." : ""));
+  syllabusStatus(`Added ${assignmentsAdded} assignment${assignmentsAdded === 1 ? "" : "s"} and ${notesAdded} note${notesAdded === 1 ? "" : "s"} to ${course.name}${attendanceSet ? " (attendance policy filled in)" : ""}.` +
+    (assignmentsAdded ? " Open Milestones (via Degree Audit) and hit Sync to push the dated ones to Google Calendar." : ""));
 });
 
 /* =====================================================================
@@ -3040,9 +3086,14 @@ function completeOnboarding() {
 /* =====================================================================
    NAV, FOOTER, INIT
    ===================================================================== */
+// Courses & Milestones are reachable from Degree Audit (buttons), not the tab
+// bar — keep the Degree Audit tab highlighted while viewing them.
+const SUBVIEWS = { courses: "audit", milestones: "audit" };
 function showView(name) {
-  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("active", b.dataset.view === name));
+  const activeTab = SUBVIEWS[name] || name;
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("active", b.dataset.view === activeTab));
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === "view-" + name));
+  if (name === "semester") renderThisSemester();   // aggregates data edited elsewhere; refresh on entry
 }
 $("#tabs").addEventListener("click", e => {
   const btn = e.target.closest("button[data-view]");
@@ -3094,6 +3145,80 @@ function fillSemesterSelect() {
   }
 }
 
+/* =====================================================================
+   THIS SEMESTER — per-course dashboard for in-progress courses.
+   Read-focused (glance at assignments / exam format / notes / outline),
+   plus the one field Bri wants front-and-center and editable:
+   attendance policy. Syllabus import lives here too.
+   ===================================================================== */
+function renderThisSemester() {
+  const box = $("#semester-cards");
+  if (!box) return;
+  $("#semester-title").textContent = "This Semester" + (data.settings.currentSemester ? " · " + data.settings.currentSemester : "");
+  box.innerHTML = "";
+  const current = data.courses.filter(c => c.status === "in_progress");
+  if (!current.length) {
+    box.append(el("p", "placeholder-note", "No in-progress courses yet. Mark a course “in progress” under Degree Audit → All courses & transcript, and its assignments and syllabus notes will show up here."));
+    return;
+  }
+  const today = isoDay(new Date());
+  for (const c of current) {
+    const card = el("div", "sem-card");
+
+    const head = el("div", "sem-card-head");
+    head.append(el("span", "sc-name", esc(c.name)), el("span", "sc-hrs", `${c.hours} hr${c.hours === 1 ? "" : "s"}`));
+    if (c.online) head.append(el("span", "chip", "online"));
+    if (c.pass_fail) head.append(el("span", "chip", "pass/fail"));
+    if (c.exam_date) {
+      const d = daysUntil(c.exam_date);
+      head.append(el("span", "sem-exam" + (d >= 0 && d <= 14 ? " soon" : ""), `Exam ${fmtDate(c.exam_date)}${d >= 0 ? ` · in ${d}d` : ""}`));
+    }
+    head.append(el("span", "chip", "outline: " + OUTLINE_STATES[c.outline_status || "not_started"]));
+    if (c.outline_link) head.append(el("span", null, `<a href="${esc(c.outline_link)}" target="_blank" rel="noopener" style="font-size:0.72rem;color:var(--accent)">open ${ICONS.externalLink}</a>`));
+    card.append(head);
+
+    // Attendance policy — standard, always-shown, inline-editable field.
+    const attWrap = el("div", "sem-field");
+    attWrap.append(el("label", null, "Attendance policy"));
+    const att = orgInput("text", c.attendance_policy || "", "e.g. 2 unexcused absences allowed; 3rd drops a letter grade", v => { c.attendance_policy = v.trim() || undefined; persist(); });
+    att.className = "sem-inline";
+    attWrap.append(att);
+    card.append(attWrap);
+
+    const cols = el("div", "sem-cols");
+
+    const aCol = el("div");
+    aCol.append(el("div", "sem-sub", "Upcoming assignments"));
+    const upcoming = (c.assignments || []).filter(a => a.due_date >= today).sort((x, y) => x.due_date.localeCompare(y.due_date));
+    if (!upcoming.length) aCol.append(el("p", "syl-empty", "None upcoming."));
+    for (const a of upcoming) {
+      const row = el("div", "ms-task");
+      row.append(el("span", "mt-date", fmtDate(a.due_date)), el("span", "mt-label", esc(a.title)), el("span", "chip", esc(a.type)));
+      aCol.append(row);
+    }
+    cols.append(aCol);
+
+    const nCol = el("div");
+    const refNotes = (c.notes || []).filter(n => n.category !== "pattern");
+    const patterns = (c.notes || []).filter(n => n.category === "pattern");
+    nCol.append(el("div", "sem-sub", "Reference"));
+    if (!refNotes.length && !patterns.length) nCol.append(el("p", "syl-empty", "No syllabus notes yet — import a syllabus above."));
+    for (const n of refNotes) {
+      const row = el("div", "sem-note-line");
+      row.append(el("span", "chip", esc((n.category || "").replace("_", " "))), el("span", null, esc(n.text)));
+      nCol.append(row);
+    }
+    if (patterns.length) {
+      nCol.append(el("div", "sem-sub", "Recurring"));
+      for (const p of patterns) nCol.append(el("div", "sem-note-line", esc(p.text)));
+    }
+    cols.append(nCol);
+    card.append(cols);
+
+    box.append(card);
+  }
+}
+
 function renderAll() {
   rebuildSemesters();
   fillSemesterSelect();
@@ -3115,6 +3240,7 @@ function renderAll() {
   renderAudit();
   renderPlanner();
   renderCourses();
+  renderThisSemester();
   renderNotes();
   renderStudy();
   renderMilestones();

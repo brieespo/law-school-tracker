@@ -56,6 +56,8 @@ Dinner-planner pattern: one row per user in `law_school_data` with jsonb columns
   grade: null,                    // optional
   buckets: ["core"],              // which requirement buckets it satisfies (see engine below)
   live_client: false, online: false, non_law: false, independent_study: false, journal_credit: false,
+  attendance_policy: "",          // optional — a standard editable field on the This Semester card;
+                                  // syllabus import auto-fills it from any extracted note mentioning "attendance"
   assignments: [                  // optional — populated by syllabus import or added manually
     { id: 1, title: "Midterm Exam", due_date: "2026-10-01", type: "exam", source: "syllabus" }
     // type: 'reading' | 'paper' | 'exam' | 'other'. Dated assignments with a due_date ride
@@ -154,9 +156,15 @@ Phase 3 upgrade: write study blocks to the app-owned Google Calendar alongside m
 
    This answers "how do I plan the next 2 years to hit everything."
 4. **Study Planner** — availability grid, finals-mode generator, outline tracker (above).
-5. **Milestones** — timeline view from today through bar exam, with lead tasks and (Phase 2) push-to-Google-Calendar.
-6. **Note Tracker** — the stage stepper above.
-7. **Courses** — the full transcript + plan with one-tap status changes, plus **syllabus import**: upload a PDF, review the extracted assignments/patterns/notes, commit into the matching course (see Data model above). Each course row expands to show its assignments and notes with delete buttons.
+5. **Note Tracker** ("Law Review" tab, journal members only) — the stage stepper above.
+6. **This Semester** — a per-course dashboard for **in-progress** courses (top-level tab, sits right after Agenda). One card per current course showing: exam date + countdown and outline status (both from the Study Planner), an always-shown **editable attendance-policy field** (`course.attendance_policy`), upcoming dated assignments, and syllabus notes split into reference (exam format / grading / participation / policy) and recurring patterns. **Syllabus import lives here** (moved off the Courses view — see Data model above). Syllabus import auto-routes any extracted note that mentions "attendance" into the dedicated attendance field instead of the generic notes list.
+
+### Navigation / information architecture
+
+The top menu bar is: **Agenda · This Semester · Degree Audit · Semester Planner · Law Review · Study Planner · Student Orgs**. Two views are **not** on the bar — they're reachable as sub-pages via buttons on the Degree Audit screen ("All courses & transcript →", "Milestones & bar timeline →"), each with a "← Degree Audit" back button, and the Degree Audit tab stays highlighted while you're in them (`SUBVIEWS` map in `showView`):
+
+- **Courses** — the full transcript + plan (all semesters), one-tap status/grade edits, add-course form; each course row expands to show its assignments and notes with delete buttons. This is the record-management surface; the *glance* surface is This Semester.
+- **Milestones** — timeline from today through the bar with lead tasks and Sync to Google Calendar (three-calendar write-back, above).
 
 ## Seed data: transcript
 
