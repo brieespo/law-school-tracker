@@ -549,7 +549,7 @@ footer button { font: inherit; font-size: 0.72rem; border: none; background: non
         <button class="primary" style="font:inherit;font-size:0.78rem;padding:6px 12px;border-radius:8px;cursor:pointer" onclick="syncToGoogle()">Sync to Google Calendar</button>
         <span id="ms-sync-status"></span>
       </div>
-      <p style="font-size:0.76rem;color:var(--muted);margin-bottom:12px">Dates marked <span class="chip tentative">confirm date</span> are placeholders — official dates are entered by you, never assumed. Sync creates an app-owned "Law School App" calendar and (re)writes milestone reminders, upcoming study blocks, and upcoming syllabus assignments (Courses tab) into it; your own calendars are never touched.</p>
+      <p style="font-size:0.76rem;color:var(--muted);margin-bottom:12px">Dates marked <span class="chip tentative">confirm date</span> are placeholders — official dates are entered by you, never assumed. Sync creates three app-owned calendars — <strong>Law School — Milestones</strong>, <strong>— Assignments</strong> (from the Courses tab), and <strong>— Study Blocks</strong> — and (re)writes each into its own, so you can color and hide them separately in Google Calendar. Your own calendars are never touched.</p>
       <div id="ms-list"></div>
       <div class="ms-actions" style="border-top:1px solid var(--hairline);padding-top:10px">
         <strong style="font-size:0.78rem">Add milestone:</strong>
@@ -2269,69 +2269,105 @@ async function gwfetch(url, opts = {}) {
   if (!r.ok && r.status !== 410) throw new Error("Google API error " + r.status);
   return (r.status === 200 || r.status === 201) ? r.json() : null;
 }
+// Each event stream gets its own app-created calendar, so they can be
+// colored and toggled independently in Google Calendar. All three are
+// app-created (calendar.app.created scope) — the app still can't touch
+// the user's own curated calendars.
+const APP_CALENDARS = [
+  { key: "milestones",  summary: "Law School — Milestones" },
+  { key: "assignments", summary: "Law School — Assignments" },
+  { key: "study",       summary: "Law School — Study Blocks" },
+];
+const CAL_URL = id => "https://www.googleapis.com/calendar/v3/calendars/" + encodeURIComponent(id);
+
+async function resolveAppCalendar(key, summary) {
+  const store = data.settings.appCalendars || (data.settings.appCalendars = {});
+  let calId = store[key];
+  if (calId) {
+    const ok = await gwfetch(CAL_URL(calId)).then(x => !!x).catch(() => false);
+    if (!ok) calId = null;
+  }
+  if (!calId) {
+    const cal = await gwfetch("https://www.googleapis.com/calendar/v3/calendars", {
+      method: "POST",
+      body: { summary, description: "Created by Law School Command Center. Sync wipes and rewrites this calendar — don't add your own events here." }
+    });
+    calId = cal.id;
+    store[key] = calId;
+    persist();
+  }
+  return calId;
+}
+
 async function syncToGoogle() {
   const say = (t, level = "muted") => { $("#ms-sync-status").innerHTML = statusDot(level) + esc(t); };
   try {
     say("Requesting Google permission…");
     await requestWriteToken();
 
-    say("Finding the app calendar…");
-    let calId = data.settings.appCalendarId;
-    if (calId) {
-      const ok = await gwfetch("https://www.googleapis.com/calendar/v3/calendars/" + encodeURIComponent(calId)).then(x => !!x).catch(() => false);
-      if (!ok) calId = null;
-    }
-    if (!calId) {
-      const cal = await gwfetch("https://www.googleapis.com/calendar/v3/calendars", {
-        method: "POST",
-        body: { summary: "Law School App", description: "Created by Law School Command Center. Sync wipes and rewrites this calendar — don't add your own events here." }
-      });
-      calId = cal.id;
-      data.settings.appCalendarId = calId;
+    // One-time migration: the old single "Law School App" calendar becomes
+    // the Milestones calendar (renamed), so it isn't orphaned with stale
+    // mixed events. The wipe step below then clears its old study/assignment
+    // events and rewrites only milestones.
+    if (data.settings.appCalendarId && !(data.settings.appCalendars || {}).milestones) {
+      const oldId = data.settings.appCalendarId;
+      const stillThere = await gwfetch(CAL_URL(oldId)).then(x => !!x).catch(() => false);
+      if (stillThere) {
+        await gwfetch(CAL_URL(oldId), { method: "PATCH", body: { summary: "Law School — Milestones" } });
+        (data.settings.appCalendars || (data.settings.appCalendars = {})).milestones = oldId;
+      }
+      delete data.settings.appCalendarId;
       persist();
     }
-    const base = "https://www.googleapis.com/calendar/v3/calendars/" + encodeURIComponent(calId);
 
-    say("Clearing previous app events…");
-    const existing = await gwfetch(base + "/events?maxResults=2500&showDeleted=false");
-    for (const ev of existing.items || []) await gwfetch(base + "/events/" + ev.id, { method: "DELETE" });
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const today = isoDay(new Date());
 
-    const events = [];
+    // Build each stream's events separately, keyed by calendar.
+    const byStream = { milestones: [], assignments: [], study: [] };
+
     for (const m of data.milestones) {
       if (!m.date || m.status === "done") continue;
-      events.push({ summary: "⚖️ " + m.name, start: { date: m.date }, end: { date: addDays(m.date, 1) }, description: m.notes || "" });
+      byStream.milestones.push({ summary: "⚖️ " + m.name, start: { date: m.date }, end: { date: addDays(m.date, 1) }, description: m.notes || "" });
       for (const t of m.lead_tasks || []) {
         if (t.done) continue;
         const d = taskDate(m, t);
-        events.push({ summary: "⚖️ " + t.label, start: { date: d }, end: { date: addDays(d, 1) }, description: `Lead task for ${m.name} (${fmtDate(m.date)})` });
+        byStream.milestones.push({ summary: "⚖️ " + t.label, start: { date: d }, end: { date: addDays(d, 1) }, description: `Lead task for ${m.name} (${fmtDate(m.date)})` });
       }
     }
-    const today0 = isoDay(new Date());
     for (const c of data.courses) {
       if (c.status === "dropped") continue;
       for (const a of c.assignments || []) {
-        if (a.due_date < today0) continue;
-        events.push({ summary: `📄 ${c.name} — ${a.title}`, start: { date: a.due_date }, end: { date: addDays(a.due_date, 1) }, description: `${a.type} · from syllabus import` });
+        if (a.due_date < today) continue;
+        byStream.assignments.push({ summary: `📄 ${c.name} — ${a.title}`, start: { date: a.due_date }, end: { date: addDays(a.due_date, 1) }, description: `${a.type} · from syllabus import` });
       }
     }
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const today = isoDay(new Date());
     for (const b of studySettings().plan || []) {
       if (b.status !== "todo" || b.date < today) continue;
       const slot = STUDY_SLOTS.find(s => s.key === b.slot);
       const c = data.courses.find(x => x.id === b.courseId);
       if (!slot || !c) continue;
-      events.push({
+      byStream.study.push({
         summary: `📚 ${c.name} — ${b.type || "study"}`,
         start: { dateTime: `${b.date}T${String(slot.start).padStart(2, "0")}:00:00`, timeZone: tz },
         end: { dateTime: `${b.date}T${String(slot.end).padStart(2, "0")}:00:00`, timeZone: tz }
       });
     }
 
-    say(`Writing ${events.length} events…`);
-    let n = 0;
-    for (const ev of events) { await gwfetch(base + "/events", { method: "POST", body: ev }); n++; say(`Writing events… ${n}/${events.length}`); }
-    say(`Synced ${n} events to "Law School App" — check your Google Calendar list.`, "good");
+    let total = 0;
+    for (const { key, summary } of APP_CALENDARS) {
+      const events = byStream[key];
+      say(`${summary}: preparing…`);
+      const calId = await resolveAppCalendar(key, summary);
+      const base = CAL_URL(calId);
+      // wipe then rewrite — keeps this calendar an exact mirror of app state
+      const existing = await gwfetch(base + "/events?maxResults=2500&showDeleted=false");
+      for (const ev of existing.items || []) await gwfetch(base + "/events/" + ev.id, { method: "DELETE" });
+      let n = 0;
+      for (const ev of events) { await gwfetch(base + "/events", { method: "POST", body: ev }); n++; say(`${summary}: writing ${n}/${events.length}…`); }
+      total += n;
+    }
+    say(`Synced ${total} events across 3 "Law School — …" calendars. Color or hide each in your Google Calendar list.`, "good");
   } catch (e) {
     console.error("sync failed", e);
     say("Sync failed: " + e.message, "critical");

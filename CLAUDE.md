@@ -79,6 +79,10 @@ Upload a syllabus PDF and get back structured data via a Supabase edge function,
 3. Results render in a review screen: an editable checklist per section — fix a title or date inline, uncheck anything wrong, pick which existing course the syllabus belongs to. **Nothing writes to `law_school_data` until "Commit selected."**
 4. On commit: checked assignments go into that course's `assignments` array; checked patterns and notes both land in `notes` (patterns tagged `category: "pattern"`). Dated assignments are picked up automatically the next time Milestones → Sync to Google Calendar runs (same app-owned-calendar wipe-and-rewrite mechanism used for milestones and study blocks — no separate write path).
 
+### Google Calendar write-back (Milestones → Sync)
+
+Sync writes each event stream to its **own** app-created calendar so they can be colored/toggled independently in Google Calendar: **Law School — Milestones** (milestones + backdated lead tasks), **Law School — Assignments** (dated syllabus assignments), **Law School — Study Blocks** (upcoming study-plan blocks). All three are created under the `calendar.app.created` scope — the app can only manage calendars it created and *cannot* write to the user's own curated calendars (a deliberate safety boundary; writing to an existing user calendar would require the broad `calendar` scope, which we don't request). Each calendar is wiped and rewritten on every sync to mirror app state. Calendar IDs live in `settings.appCalendars = { milestones, assignments, study }`. Migration from the earlier single-calendar design (`settings.appCalendarId` → one "Law School App" calendar): on first sync the old calendar is renamed "Law School — Milestones" and adopted as the milestones stream, so it isn't orphaned.
+
 ### Requirements engine (seed data — from the official checklist)
 
 Hardcode the requirement structure as a `REQUIREMENTS` constant; the audit screen computes fill state from the courses array:
