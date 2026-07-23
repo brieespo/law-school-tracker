@@ -235,7 +235,7 @@ button.ghost:hover, .scenario-bar button:hover { border-color: var(--accent); }
 .sem-exam.soon { color: var(--serious); }
 .sem-field { margin: 10px 0; }
 .sem-field label { display: block; font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 3px; }
-.sem-field input.sem-inline { width: 100%; font: inherit; font-size: 0.82rem; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--page); color: var(--ink); }
+.sem-field .sem-inline { width: 100%; box-sizing: border-box; font: inherit; font-size: 0.82rem; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--page); color: var(--ink); }
 .sem-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media (max-width: 640px) { .sem-cols { grid-template-columns: 1fr; } }
 .sem-sub { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; margin: 8px 0 2px; }
@@ -251,9 +251,12 @@ button.ghost:hover, .scenario-bar button:hover { border-color: var(--accent); }
 .tag-participation { --tag-hue: #4a3aa7; }
 .tag-policy { --tag-hue: #eda100; }
 .tag-other { --tag-hue: #898781; }
-.sem-edit-row { display: flex; gap: 6px; align-items: center; padding: 3px 0; flex-wrap: wrap; }
+.sem-edit-row { display: flex; gap: 6px; align-items: flex-start; padding: 3px 0; flex-wrap: wrap; }
 .sem-edit-text { flex: 1; min-width: 120px; font: inherit; font-size: 0.8rem; border: 1px solid transparent; background: none; color: var(--ink); padding: 2px 5px; border-radius: 5px; }
 .sem-edit-text:hover, .sem-edit-text:focus { border-color: var(--border); background: var(--page); }
+/* auto-growing wrapping textareas — long lines stay fully readable */
+.sem-ta { font: inherit; resize: none; overflow: hidden; line-height: 1.4; white-space: pre-wrap; word-break: break-word; display: block; }
+.sem-edit-row .sem-del, .sem-edit-row .sem-edit-date, .sem-edit-row .tag-select { margin-top: 2px; }
 .sem-edit-date { flex: none; font: inherit; font-size: 0.73rem; color: var(--ink-2); border: 1px solid transparent; background: none; padding: 2px 3px; border-radius: 5px; }
 .sem-edit-date:hover, .sem-edit-date:focus { border-color: var(--border); background: var(--page); }
 .sem-edit-row.past .sem-edit-text, .sem-edit-row.past .sem-edit-date { opacity: 0.55; }
@@ -1657,7 +1660,7 @@ function courseExtrasPanel(c) {
       row.append(el("span", "chip", esc(a.type)));
       const rm = el("button", null, ICONS.x);
       rm.style.cssText = "border:none;background:none;color:var(--muted);cursor:pointer";
-      rm.addEventListener("click", () => { c.assignments = c.assignments.filter(x => x.id !== a.id); persist(); renderCourses(); });
+      rm.addEventListener("click", () => { if (!confirm(`Delete this?\n\n${a.type} · ${a.due_date ? fmtDate(a.due_date) : "(no date)"} · ${a.title || "(untitled)"}`)) return; c.assignments = c.assignments.filter(x => x.id !== a.id); persist(); renderCourses(); });
       row.append(rm);
       panel.append(row);
     }
@@ -1670,7 +1673,7 @@ function courseExtrasPanel(c) {
       row.append(el("span", "mt-label", esc(n.text)));
       const rm = el("button", null, ICONS.x);
       rm.style.cssText = "border:none;background:none;color:var(--muted);cursor:pointer";
-      rm.addEventListener("click", () => { c.notes = c.notes.filter(x => x.id !== n.id); persist(); renderCourses(); });
+      rm.addEventListener("click", () => { if (!confirm(`Delete this?\n\n${(n.category || "note").replace("_", " ")}: ${n.text || "(empty)"}`)) return; c.notes = c.notes.filter(x => x.id !== n.id); persist(); renderCourses(); });
       row.append(rm);
       panel.append(row);
     }
@@ -2408,8 +2411,8 @@ async function syncToGoogle() {
     for (const c of data.courses) {
       if (c.status === "dropped") continue;
       for (const a of c.assignments || []) {
-        if (a.due_date < today) continue;
-        byStream.assignments.push({ summary: `📄 ${c.name} — ${a.title}`, start: { date: a.due_date }, end: { date: addDays(a.due_date, 1) }, description: `${a.type} · from syllabus import` });
+        if (!a.due_date || !a.title || a.due_date < today) continue;   // skip blank/undated (e.g. a just-added, unfilled row)
+        byStream.assignments.push({ summary: `📄 ${c.name} — ${a.title}`, start: { date: a.due_date }, end: { date: addDays(a.due_date, 1) }, description: a.type });
       }
     }
     for (const b of studySettings().plan || []) {
@@ -3201,10 +3204,23 @@ function tagSelect(options, value, onChange) {
   sel.addEventListener("change", () => onChange(sel.value));
   return sel;
 }
-function tinyDelete(onClick) {
+// Delete button that confirms first, previewing exactly what will be removed.
+function tinyDelete(preview, onClick) {
   const b = el("button", "sem-del", ICONS.x);
-  b.addEventListener("click", onClick);
+  b.title = "Delete";
+  b.addEventListener("click", () => { if (confirm("Delete this?\n\n" + preview)) onClick(); });
   return b;
+}
+// Auto-growing, wrapping text field (so long notes/policies stay fully readable).
+function autoGrow(ta) { ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px"; }
+function semTextarea(value, placeholder, cls, onChange) {
+  const ta = document.createElement("textarea");
+  ta.className = "sem-ta " + (cls || "");
+  ta.rows = 1; ta.value = value || "";
+  if (placeholder) ta.placeholder = placeholder;
+  ta.addEventListener("input", () => autoGrow(ta));
+  ta.addEventListener("change", () => onChange(ta.value.trim()));
+  return ta;
 }
 
 function renderThisSemester() {
@@ -3244,8 +3260,7 @@ function renderThisSemester() {
     // Attendance policy — standard, always-shown, inline-editable field.
     const attWrap = el("div", "sem-field");
     attWrap.append(el("label", null, "Attendance policy"));
-    const att = orgInput("text", c.attendance_policy || "", "e.g. 2 unexcused absences allowed; 3rd drops a letter grade", v => { c.attendance_policy = v.trim() || undefined; persist(); });
-    att.className = "sem-inline";
+    const att = semTextarea(c.attendance_policy || "", "e.g. 2 unexcused absences allowed; 3rd drops a letter grade", "sem-inline", v => { c.attendance_policy = v || undefined; persist(); });
     attWrap.append(att);
     card.append(attWrap);
 
@@ -3259,7 +3274,7 @@ function renderThisSemester() {
       const role = orgInput("text", ct.role, "Professor / TA", v => { ct.role = v.trim(); persist(); }); role.className = "cn-role";
       const email = orgInput("email", ct.email, "Email", v => { ct.email = v.trim(); persist(); }); email.className = "cn-email";
       const note = orgInput("text", ct.note, "Office hours / phone", v => { ct.note = v.trim(); persist(); }); note.className = "cn-note";
-      row.append(name, role, email, note, tinyDelete(() => { c.contacts = c.contacts.filter(x => x.id !== ct.id); persist(); renderThisSemester(); }));
+      row.append(name, role, email, note, tinyDelete(`Contact: ${ct.name || "(no name)"}${ct.role ? " — " + ct.role : ""}`, () => { c.contacts = c.contacts.filter(x => x.id !== ct.id); persist(); renderThisSemester(); }));
       contactsWrap.append(row);
     }
     const addContact = el("button", "sem-add", "+ Add contact");
@@ -3286,7 +3301,7 @@ function renderThisSemester() {
       const row = el("div", "sem-abs-row");
       const d = orgInput("date", ab.date || "", "", v => { ab.date = v || null; persist(); renderThisSemester(); }); d.className = "sem-edit-date";
       const status = tagSelect(ABSENCE_STATUS, ab.status || "unexcused", v => { ab.status = v; persist(); renderThisSemester(); });
-      row.append(d, status, tinyDelete(() => { c.absences = c.absences.filter(x => x.id !== ab.id); persist(); renderThisSemester(); }));
+      row.append(d, status, tinyDelete(`Absence: ${ab.date ? fmtDate(ab.date) : "(no date)"} — ${ab.status || "unexcused"}`, () => { c.absences = c.absences.filter(x => x.id !== ab.id); persist(); renderThisSemester(); }));
       absWrap.append(row);
     }
     const addAbs = el("button", "sem-add", "+ Add absence");
@@ -3306,56 +3321,62 @@ function renderThisSemester() {
 
     const cols = el("div", "sem-cols");
 
+    c.assignments = c.assignments || [];
+    c.notes = c.notes || [];
+
     // Assignments — editable rows, colored type tag leading each line.
     const aCol = el("div");
     aCol.append(el("div", "sem-sub", "Assignments"));
-    const asgs = (c.assignments || []).slice().sort((x, y) => (x.due_date || "9999").localeCompare(y.due_date || "9999"));
-    if (!asgs.length) aCol.append(el("p", "syl-empty", "None yet."));
+    const asgs = c.assignments.slice().sort((x, y) => (x.due_date || "9999").localeCompare(y.due_date || "9999"));
     for (const a of asgs) {
       const row = el("div", "sem-edit-row" + (a.due_date && a.due_date < today ? " past" : ""));
       const type = tagSelect(ASSIGNMENT_TYPES, a.type || "other", v => { a.type = v; persist(); renderThisSemester(); });
       const date = orgInput("date", a.due_date || "", "", v => { a.due_date = v || null; persist(); renderThisSemester(); });
       date.className = "sem-edit-date";
-      const title = orgInput("text", a.title, "Assignment", v => { a.title = v.trim(); persist(); });
-      title.className = "sem-edit-text";
-      row.append(type, date, title, tinyDelete(() => { c.assignments = c.assignments.filter(x => x.id !== a.id); persist(); renderThisSemester(); }));
+      const title = semTextarea(a.title, "Assignment", "sem-edit-text", v => { a.title = v; persist(); });
+      row.append(type, date, title, tinyDelete(`${a.type} · ${a.due_date ? fmtDate(a.due_date) : "(no date)"} · ${a.title || "(untitled)"}`, () => { c.assignments = c.assignments.filter(x => x.id !== a.id); persist(); renderThisSemester(); }));
       aCol.append(row);
     }
+    const addAsg = el("button", "sem-add", "+ Add assignment");
+    addAsg.addEventListener("click", () => { c.assignments.push({ id: nextSubId(c.assignments), title: "", due_date: null, type: "reading" }); persist(); renderThisSemester(); });
+    aCol.append(addAsg);
     cols.append(aCol);
 
-    // Notes — Recurring above Reference; every line editable.
+    // Notes — Recurring above Reference; every line editable; add-line buttons on each.
     const nCol = el("div");
-    const refNotes = (c.notes || []).filter(n => n.category !== "pattern");
-    const patterns = (c.notes || []).filter(n => n.category === "pattern");
-    if (!refNotes.length && !patterns.length) {
-      nCol.append(el("div", "sem-sub", "Notes"), el("p", "syl-empty", "No syllabus notes yet — import a syllabus above."));
+    const patterns = c.notes.filter(n => n.category === "pattern");
+    const refNotes = c.notes.filter(n => n.category !== "pattern");
+
+    nCol.append(el("div", "sem-sub", "Recurring"));
+    for (const p of patterns) {
+      const row = el("div", "sem-edit-row");
+      const txt = semTextarea(p.text, "Recurring rule", "sem-edit-text", v => { p.text = v; persist(); });
+      row.append(txt, tinyDelete(`Recurring: ${p.text || "(empty)"}`, () => { c.notes = c.notes.filter(x => x.id !== p.id); persist(); renderThisSemester(); }));
+      nCol.append(row);
     }
-    if (patterns.length) {
-      nCol.append(el("div", "sem-sub", "Recurring"));
-      for (const p of patterns) {
-        const row = el("div", "sem-edit-row");
-        const txt = orgInput("text", p.text, "Recurring rule", v => { p.text = v.trim(); persist(); });
-        txt.className = "sem-edit-text";
-        row.append(txt, tinyDelete(() => { c.notes = c.notes.filter(x => x.id !== p.id); persist(); renderThisSemester(); }));
-        nCol.append(row);
-      }
+    const addRec = el("button", "sem-add", "+ Add recurring");
+    addRec.addEventListener("click", () => { c.notes.push({ id: nextSubId(c.notes), category: "pattern", text: "" }); persist(); renderThisSemester(); });
+    nCol.append(addRec);
+
+    nCol.append(el("div", "sem-sub", "Reference"));
+    for (const n of refNotes) {
+      const row = el("div", "sem-edit-row");
+      const cat = tagSelect(NOTE_CATEGORIES, n.category || "other", v => { n.category = v; persist(); renderThisSemester(); });
+      const txt = semTextarea(n.text, "Note", "sem-edit-text", v => { n.text = v; persist(); });
+      row.append(cat, txt, tinyDelete(`${(n.category || "note").replace("_", " ")}: ${n.text || "(empty)"}`, () => { c.notes = c.notes.filter(x => x.id !== n.id); persist(); renderThisSemester(); }));
+      nCol.append(row);
     }
-    if (refNotes.length) {
-      nCol.append(el("div", "sem-sub", "Reference"));
-      for (const n of refNotes) {
-        const row = el("div", "sem-edit-row");
-        const cat = tagSelect(NOTE_CATEGORIES, n.category || "other", v => { n.category = v; persist(); renderThisSemester(); });
-        const txt = orgInput("text", n.text, "Note", v => { n.text = v.trim(); persist(); });
-        txt.className = "sem-edit-text";
-        row.append(cat, txt, tinyDelete(() => { c.notes = c.notes.filter(x => x.id !== n.id); persist(); renderThisSemester(); }));
-        nCol.append(row);
-      }
-    }
+    const addRef = el("button", "sem-add", "+ Add note");
+    addRef.addEventListener("click", () => { c.notes.push({ id: nextSubId(c.notes), category: "other", text: "" }); persist(); renderThisSemester(); });
+    nCol.append(addRef);
+
     cols.append(nCol);
     card.append(cols);
 
     box.append(card);
   }
+  // size the auto-grow textareas now that they're in the DOM (scrollHeight needs layout)
+  box.querySelectorAll("textarea.sem-ta").forEach(autoGrow);
 }
 
 function renderAll() {
