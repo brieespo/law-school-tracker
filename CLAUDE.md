@@ -56,8 +56,18 @@ Dinner-planner pattern: one row per user in `law_school_data` with jsonb columns
   grade: null,                    // optional
   buckets: ["core"],              // which requirement buckets it satisfies (see engine below)
   live_client: false, online: false, non_law: false, independent_study: false, journal_credit: false,
-  attendance_policy: "",          // optional — a standard editable field on the This Semester card;
-                                  // syllabus import auto-fills it from any extracted note mentioning "attendance"
+
+  // --- This Semester card fields (all optional; shown/edited on the in-progress course card) ---
+  room: "",                       // permanent quick fact
+  attendance_policy: "",          // standard editable field; syllabus import auto-fills it from any extracted note mentioning "attendance"
+  contacts: [                     // permanent section, multiple allowed (add a TA mid-semester)
+    { id: 1, name: "Prof. Rivera", role: "Professor", email: "rivera@law.edu", note: "OH Tue 2-4pm" }
+  ],
+  allowed_absences: 3,            // the limit the absence summary compares unexcused count against
+  absences: [                     // excused/unexcused per date; summary at the card bottom
+    { id: 1, date: "2027-01-15", status: "unexcused" }   // status: 'unexcused' | 'excused'
+  ],
+
   assignments: [                  // optional — populated by syllabus import or added manually
     { id: 1, title: "Midterm Exam", due_date: "2026-10-01", type: "exam", source: "syllabus" }
     // type: 'reading' | 'paper' | 'exam' | 'other'. Dated assignments with a due_date ride
@@ -157,7 +167,7 @@ Phase 3 upgrade: write study blocks to the app-owned Google Calendar alongside m
    This answers "how do I plan the next 2 years to hit everything."
 4. **Study Planner** — availability grid, finals-mode generator, outline tracker (above).
 5. **Note Tracker** ("Law Review" tab, journal members only) — the stage stepper above.
-6. **This Semester** — a per-course dashboard for **in-progress** courses (top-level tab, sits right after Agenda). One card per current course showing: exam date + countdown and outline status (both from the Study Planner), an always-shown **editable attendance-policy field** (`course.attendance_policy`), upcoming dated assignments, and syllabus notes split into reference (exam format / grading / participation / policy) and recurring patterns. **Syllabus import lives here** (moved off the Courses view — see Data model above). Syllabus import auto-routes any extracted note that mentions "attendance" into the dedicated attendance field instead of the generic notes list.
+6. **This Semester** — a per-course dashboard/command-center for **in-progress** courses (top-level tab, right after Agenda). One card per current course. Header: exam date + countdown and outline status (from the Study Planner). Permanent editable sections: **Room**, **Attendance policy**, **Professor & contacts** (multiple — name/role/email/note, "+ Add contact" for a TA mid-semester), and an **Absence tracker** (each absence is a date + excused/unexcused pale tag; an editable "allowed" limit; a summary line "N absences — X excused, Y unexcused · Z allowed" that flags red + "(over limit)" when unexcused exceeds the limit). Then two columns: **Assignments** (editable rows, colored type tag leading each) and **Notes** — Recurring patterns above Reference (exam format / grading / participation / policy). Every line is inline-editable with a delete; category/type tags are pale, theme-adaptive `<select>`s color-coded by value (`.sem-tag` uses `color-mix` against the surface). **Syllabus import lives here** (moved off the Courses view — see Data model above); it auto-routes any extracted note mentioning "attendance" into the dedicated attendance field.
 
 ### Navigation / information architecture
 

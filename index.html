@@ -238,9 +238,43 @@ button.ghost:hover, .scenario-bar button:hover { border-color: var(--accent); }
 .sem-field input.sem-inline { width: 100%; font: inherit; font-size: 0.82rem; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--page); color: var(--ink); }
 .sem-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media (max-width: 640px) { .sem-cols { grid-template-columns: 1fr; } }
-.sem-sub { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; margin: 4px 0; }
-.sem-note-line { font-size: 0.8rem; padding: 3px 0; display: flex; gap: 6px; align-items: baseline; }
-.sem-note-line .chip { flex: none; }
+.sem-sub { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; margin: 8px 0 2px; }
+/* pale, theme-adaptive category/type tags — hue blends with the surface so it stays subtle in light and dark */
+.sem-tag { display: inline-block; font-size: 0.62rem; font-weight: 600; padding: 2px 8px; border-radius: 8px; white-space: nowrap;
+  background: color-mix(in srgb, var(--tag-hue, var(--muted)) 15%, var(--surface));
+  color: color-mix(in srgb, var(--tag-hue, var(--muted)) 68%, var(--ink)); }
+.tag-select { appearance: none; -webkit-appearance: none; border: none; cursor: pointer; text-align: center; }
+.tag-reading { --tag-hue: #2a78d6; }
+.tag-paper { --tag-hue: #eb6834; }
+.tag-exam, .tag-exam_format { --tag-hue: #e34948; }
+.tag-grading { --tag-hue: #1baf7a; }
+.tag-participation { --tag-hue: #4a3aa7; }
+.tag-policy { --tag-hue: #eda100; }
+.tag-other { --tag-hue: #898781; }
+.sem-edit-row { display: flex; gap: 6px; align-items: center; padding: 3px 0; flex-wrap: wrap; }
+.sem-edit-text { flex: 1; min-width: 120px; font: inherit; font-size: 0.8rem; border: 1px solid transparent; background: none; color: var(--ink); padding: 2px 5px; border-radius: 5px; }
+.sem-edit-text:hover, .sem-edit-text:focus { border-color: var(--border); background: var(--page); }
+.sem-edit-date { flex: none; font: inherit; font-size: 0.73rem; color: var(--ink-2); border: 1px solid transparent; background: none; padding: 2px 3px; border-radius: 5px; }
+.sem-edit-date:hover, .sem-edit-date:focus { border-color: var(--border); background: var(--page); }
+.sem-edit-row.past .sem-edit-text, .sem-edit-row.past .sem-edit-date { opacity: 0.55; }
+.sem-del { flex: none; border: none; background: none; color: var(--muted); cursor: pointer; padding: 2px; }
+.sem-del:hover { color: var(--critical); }
+.tag-excused { --tag-hue: #1baf7a; }
+.tag-unexcused { --tag-hue: #e34948; }
+.sem-field input.sem-room { max-width: 240px; }
+.sem-contact-row { display: flex; gap: 6px; align-items: center; padding: 3px 0; flex-wrap: wrap; }
+.sem-contact-row input { font: inherit; font-size: 0.8rem; border: 1px solid transparent; background: none; color: var(--ink); padding: 3px 5px; border-radius: 5px; }
+.sem-contact-row input:hover, .sem-contact-row input:focus { border-color: var(--border); background: var(--page); }
+.sem-contact-row .cn-name { flex: 1 1 120px; min-width: 90px; font-weight: 600; }
+.sem-contact-row .cn-role { flex: 0 1 90px; min-width: 70px; }
+.sem-contact-row .cn-email { flex: 1 1 150px; min-width: 110px; }
+.sem-contact-row .cn-note { flex: 1 1 130px; min-width: 100px; color: var(--ink-2); }
+.sem-abs-row { display: flex; gap: 8px; align-items: center; padding: 3px 0; }
+.sem-abs-summary { font-size: 0.78rem; color: var(--ink-2); margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--hairline); }
+.sem-abs-summary .over { color: var(--critical); font-weight: 600; }
+.sem-add { font: inherit; font-size: 0.72rem; border: 1px solid var(--border); background: var(--surface); color: var(--ink-2); border-radius: 6px; padding: 3px 10px; cursor: pointer; margin-top: 4px; }
+.sem-add:hover { border-color: var(--accent); color: var(--ink); }
+.sem-allowed { width: 56px; font: inherit; font-size: 0.8rem; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--page); color: var(--ink); }
 
 /* ---- agenda ---- */
 .agenda-grid { display: grid; grid-template-columns: 1fr 280px; gap: 16px; align-items: start; }
@@ -3151,6 +3185,28 @@ function fillSemesterSelect() {
    plus the one field Bri wants front-and-center and editable:
    attendance policy. Syllabus import lives here too.
    ===================================================================== */
+const ASSIGNMENT_TYPES = [["reading", "reading"], ["paper", "paper"], ["exam", "exam"], ["other", "other"]];
+const NOTE_CATEGORIES = [["exam_format", "exam format"], ["grading", "grading"], ["participation", "participation"], ["policy", "policy"], ["other", "other"]];
+const ABSENCE_STATUS = [["unexcused", "unexcused"], ["excused", "excused"]];
+// A pale, color-coded, editable tag (a <select> styled as a tag). Value drives the hue via a tag-<value> class.
+function tagSelect(options, value, onChange) {
+  const sel = document.createElement("select");
+  sel.className = "sem-tag tag-select tag-" + value;
+  for (const [v, label] of options) {
+    const o = document.createElement("option");
+    o.value = v; o.textContent = label;
+    if (v === value) o.selected = true;
+    sel.append(o);
+  }
+  sel.addEventListener("change", () => onChange(sel.value));
+  return sel;
+}
+function tinyDelete(onClick) {
+  const b = el("button", "sem-del", ICONS.x);
+  b.addEventListener("click", onClick);
+  return b;
+}
+
 function renderThisSemester() {
   const box = $("#semester-cards");
   if (!box) return;
@@ -3177,6 +3233,14 @@ function renderThisSemester() {
     if (c.outline_link) head.append(el("span", null, `<a href="${esc(c.outline_link)}" target="_blank" rel="noopener" style="font-size:0.72rem;color:var(--accent)">open ${ICONS.externalLink}</a>`));
     card.append(head);
 
+    // Room — permanent quick fact.
+    const roomWrap = el("div", "sem-field");
+    roomWrap.append(el("label", null, "Room"));
+    const room = orgInput("text", c.room || "", "e.g. Room 175", v => { c.room = v.trim() || undefined; persist(); });
+    room.className = "sem-inline sem-room";
+    roomWrap.append(room);
+    card.append(roomWrap);
+
     // Attendance policy — standard, always-shown, inline-editable field.
     const attWrap = el("div", "sem-field");
     attWrap.append(el("label", null, "Attendance policy"));
@@ -3185,32 +3249,107 @@ function renderThisSemester() {
     attWrap.append(att);
     card.append(attWrap);
 
+    // Professor & contacts — permanent section, supports multiple (add a TA mid-semester).
+    const contactsWrap = el("div", "sem-field");
+    contactsWrap.append(el("label", null, "Professor & contacts"));
+    c.contacts = c.contacts || [];
+    for (const ct of c.contacts) {
+      const row = el("div", "sem-contact-row");
+      const name = orgInput("text", ct.name, "Name", v => { ct.name = v.trim(); persist(); }); name.className = "cn-name";
+      const role = orgInput("text", ct.role, "Professor / TA", v => { ct.role = v.trim(); persist(); }); role.className = "cn-role";
+      const email = orgInput("email", ct.email, "Email", v => { ct.email = v.trim(); persist(); }); email.className = "cn-email";
+      const note = orgInput("text", ct.note, "Office hours / phone", v => { ct.note = v.trim(); persist(); }); note.className = "cn-note";
+      row.append(name, role, email, note, tinyDelete(() => { c.contacts = c.contacts.filter(x => x.id !== ct.id); persist(); renderThisSemester(); }));
+      contactsWrap.append(row);
+    }
+    const addContact = el("button", "sem-add", "+ Add contact");
+    addContact.addEventListener("click", () => { c.contacts.push({ id: nextSubId(c.contacts), name: "", role: "", email: "", note: "" }); persist(); renderThisSemester(); });
+    contactsWrap.append(addContact);
+    card.append(contactsWrap);
+
+    // Absence tracker — excused/unexcused per date, with an allowed-limit summary.
+    const absWrap = el("div", "sem-field");
+    const absHead = el("div", null);
+    absHead.style.cssText = "display:flex;align-items:center;gap:10px;flex-wrap:wrap";
+    absHead.append(el("label", null, "Absences"));
+    const allowedLabel = el("span", null, "allowed:");
+    allowedLabel.style.cssText = "font-size:0.72rem;color:var(--muted)";
+    const allowed = document.createElement("input");
+    allowed.type = "number"; allowed.min = 0; allowed.className = "sem-allowed"; allowed.value = c.allowed_absences ?? "";
+    allowed.placeholder = "—";
+    allowed.addEventListener("change", () => { c.allowed_absences = allowed.value === "" ? undefined : Number(allowed.value); persist(); renderThisSemester(); });
+    absHead.append(allowedLabel, allowed);
+    absWrap.append(absHead);
+
+    c.absences = c.absences || [];
+    for (const ab of [...c.absences].sort((x, y) => (x.date || "").localeCompare(y.date || ""))) {
+      const row = el("div", "sem-abs-row");
+      const d = orgInput("date", ab.date || "", "", v => { ab.date = v || null; persist(); renderThisSemester(); }); d.className = "sem-edit-date";
+      const status = tagSelect(ABSENCE_STATUS, ab.status || "unexcused", v => { ab.status = v; persist(); renderThisSemester(); });
+      row.append(d, status, tinyDelete(() => { c.absences = c.absences.filter(x => x.id !== ab.id); persist(); renderThisSemester(); }));
+      absWrap.append(row);
+    }
+    const addAbs = el("button", "sem-add", "+ Add absence");
+    addAbs.addEventListener("click", () => { c.absences.push({ id: nextSubId(c.absences), date: isoDay(new Date()), status: "unexcused" }); persist(); renderThisSemester(); });
+    absWrap.append(addAbs);
+
+    const total = c.absences.length;
+    const unexcused = c.absences.filter(a => a.status !== "excused").length;
+    const excused = total - unexcused;
+    const allowedN = c.allowed_absences;
+    const over = allowedN != null && unexcused > allowedN;
+    const summary = el("div", "sem-abs-summary",
+      `${total} absence${total === 1 ? "" : "s"} — ${excused} excused, <span class="${over ? "over" : ""}">${unexcused} unexcused</span>` +
+      (allowedN != null ? ` · ${allowedN} allowed${over ? " (over limit)" : ""}` : ""));
+    absWrap.append(summary);
+    card.append(absWrap);
+
     const cols = el("div", "sem-cols");
 
+    // Assignments — editable rows, colored type tag leading each line.
     const aCol = el("div");
-    aCol.append(el("div", "sem-sub", "Upcoming assignments"));
-    const upcoming = (c.assignments || []).filter(a => a.due_date >= today).sort((x, y) => x.due_date.localeCompare(y.due_date));
-    if (!upcoming.length) aCol.append(el("p", "syl-empty", "None upcoming."));
-    for (const a of upcoming) {
-      const row = el("div", "ms-task");
-      row.append(el("span", "mt-date", fmtDate(a.due_date)), el("span", "mt-label", esc(a.title)), el("span", "chip", esc(a.type)));
+    aCol.append(el("div", "sem-sub", "Assignments"));
+    const asgs = (c.assignments || []).slice().sort((x, y) => (x.due_date || "9999").localeCompare(y.due_date || "9999"));
+    if (!asgs.length) aCol.append(el("p", "syl-empty", "None yet."));
+    for (const a of asgs) {
+      const row = el("div", "sem-edit-row" + (a.due_date && a.due_date < today ? " past" : ""));
+      const type = tagSelect(ASSIGNMENT_TYPES, a.type || "other", v => { a.type = v; persist(); renderThisSemester(); });
+      const date = orgInput("date", a.due_date || "", "", v => { a.due_date = v || null; persist(); renderThisSemester(); });
+      date.className = "sem-edit-date";
+      const title = orgInput("text", a.title, "Assignment", v => { a.title = v.trim(); persist(); });
+      title.className = "sem-edit-text";
+      row.append(type, date, title, tinyDelete(() => { c.assignments = c.assignments.filter(x => x.id !== a.id); persist(); renderThisSemester(); }));
       aCol.append(row);
     }
     cols.append(aCol);
 
+    // Notes — Recurring above Reference; every line editable.
     const nCol = el("div");
     const refNotes = (c.notes || []).filter(n => n.category !== "pattern");
     const patterns = (c.notes || []).filter(n => n.category === "pattern");
-    nCol.append(el("div", "sem-sub", "Reference"));
-    if (!refNotes.length && !patterns.length) nCol.append(el("p", "syl-empty", "No syllabus notes yet — import a syllabus above."));
-    for (const n of refNotes) {
-      const row = el("div", "sem-note-line");
-      row.append(el("span", "chip", esc((n.category || "").replace("_", " "))), el("span", null, esc(n.text)));
-      nCol.append(row);
+    if (!refNotes.length && !patterns.length) {
+      nCol.append(el("div", "sem-sub", "Notes"), el("p", "syl-empty", "No syllabus notes yet — import a syllabus above."));
     }
     if (patterns.length) {
       nCol.append(el("div", "sem-sub", "Recurring"));
-      for (const p of patterns) nCol.append(el("div", "sem-note-line", esc(p.text)));
+      for (const p of patterns) {
+        const row = el("div", "sem-edit-row");
+        const txt = orgInput("text", p.text, "Recurring rule", v => { p.text = v.trim(); persist(); });
+        txt.className = "sem-edit-text";
+        row.append(txt, tinyDelete(() => { c.notes = c.notes.filter(x => x.id !== p.id); persist(); renderThisSemester(); }));
+        nCol.append(row);
+      }
+    }
+    if (refNotes.length) {
+      nCol.append(el("div", "sem-sub", "Reference"));
+      for (const n of refNotes) {
+        const row = el("div", "sem-edit-row");
+        const cat = tagSelect(NOTE_CATEGORIES, n.category || "other", v => { n.category = v; persist(); renderThisSemester(); });
+        const txt = orgInput("text", n.text, "Note", v => { n.text = v.trim(); persist(); });
+        txt.className = "sem-edit-text";
+        row.append(cat, txt, tinyDelete(() => { c.notes = c.notes.filter(x => x.id !== n.id); persist(); renderThisSemester(); }));
+        nCol.append(row);
+      }
     }
     cols.append(nCol);
     card.append(cols);
