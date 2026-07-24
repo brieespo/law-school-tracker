@@ -3287,50 +3287,72 @@ function renderThisSemester() {
     attWrap.append(att);
     card.append(attWrap);
 
-    // Professor & contacts — permanent section, supports multiple (add a TA mid-semester).
-    const contactsWrap = el("div", "sem-field");
-    contactsWrap.append(el("label", null, "Professor & contacts"));
+    // Professor & contacts — read block with "✎ edit"; multiple allowed (add a TA mid-semester).
     c.contacts = c.contacts || [];
-    for (const ct of c.contacts) {
-      const row = el("div", "sem-contact-row");
-      const name = orgInput("text", ct.name, "Name", v => { ct.name = v.trim(); persist(); }); name.className = "cn-name";
-      const role = orgInput("text", ct.role, "Professor / TA", v => { ct.role = v.trim(); persist(); }); role.className = "cn-role";
-      const email = orgInput("email", ct.email, "Email", v => { ct.email = v.trim(); persist(); }); email.className = "cn-email";
-      const note = orgInput("text", ct.note, "Office hours / phone", v => { ct.note = v.trim(); persist(); }); note.className = "cn-note";
-      row.append(name, role, email, note, tinyDelete(`Contact: ${ct.name || "(no name)"}${ct.role ? " — " + ct.role : ""}`, () => { c.contacts = c.contacts.filter(x => x.id !== ct.id); persist(); renderThisSemester(); }));
-      contactsWrap.append(row);
+    const ctKey = c.id + ":contacts", ctEdit = semEdit.has(ctKey);
+    const contactsWrap = el("div", "sem-field");
+    contactsWrap.append(sectionHeader("Professor & contacts", ctKey));
+    if (ctEdit) {
+      for (const ct of c.contacts) {
+        const row = el("div", "sem-contact-row");
+        const name = orgInput("text", ct.name, "Name", v => { ct.name = v.trim(); persist(); }); name.className = "cn-name";
+        const role = orgInput("text", ct.role, "Professor / TA", v => { ct.role = v.trim(); persist(); }); role.className = "cn-role";
+        const email = orgInput("email", ct.email, "Email", v => { ct.email = v.trim(); persist(); }); email.className = "cn-email";
+        const note = orgInput("text", ct.note, "Office hours / phone", v => { ct.note = v.trim(); persist(); }); note.className = "cn-note";
+        row.append(name, role, email, note, tinyDelete(`Contact: ${ct.name || "(no name)"}${ct.role ? " — " + ct.role : ""}`, () => { c.contacts = c.contacts.filter(x => x.id !== ct.id); persist(); renderThisSemester(); }));
+        contactsWrap.append(row);
+      }
+      const addContact = el("button", "sem-add", "+ Add contact");
+      addContact.addEventListener("click", () => { c.contacts.push({ id: nextSubId(c.contacts), name: "", role: "", email: "", note: "" }); persist(); renderThisSemester(); });
+      contactsWrap.append(addContact);
+    } else if (!c.contacts.length) {
+      contactsWrap.append(el("p", "syl-empty", "No contacts yet."));
+    } else {
+      for (const ct of c.contacts) {
+        let html = `<strong>${esc(ct.name || "(no name)")}</strong>`;
+        if (ct.role) html += ` — ${esc(ct.role)}`;
+        if (ct.email) html += ` · <a href="mailto:${esc(ct.email)}" style="color:var(--accent)">${esc(ct.email)}</a>`;
+        if (ct.note) html += ` · <span style="color:var(--ink-2)">${esc(ct.note)}</span>`;
+        const line = el("div", "sem-read-line");
+        line.append(el("span", "rl-text", html));
+        contactsWrap.append(line);
+      }
     }
-    const addContact = el("button", "sem-add", "+ Add contact");
-    addContact.addEventListener("click", () => { c.contacts.push({ id: nextSubId(c.contacts), name: "", role: "", email: "", note: "" }); persist(); renderThisSemester(); });
-    contactsWrap.append(addContact);
     card.append(contactsWrap);
 
-    // Absence tracker — excused/unexcused per date, with an allowed-limit summary.
-    const absWrap = el("div", "sem-field");
-    const absHead = el("div", null);
-    absHead.style.cssText = "display:flex;align-items:center;gap:10px;flex-wrap:wrap";
-    absHead.append(el("label", null, "Absences"));
-    const allowedLabel = el("span", null, "allowed:");
-    allowedLabel.style.cssText = "font-size:0.72rem;color:var(--muted)";
-    const allowed = document.createElement("input");
-    allowed.type = "number"; allowed.min = 0; allowed.className = "sem-allowed"; allowed.value = c.allowed_absences ?? "";
-    allowed.placeholder = "—";
-    allowed.addEventListener("change", () => { c.allowed_absences = allowed.value === "" ? undefined : Number(allowed.value); persist(); renderThisSemester(); });
-    absHead.append(allowedLabel, allowed);
-    absWrap.append(absHead);
-
+    // Absence tracker — read block with "✎ edit"; excused/unexcused per date + allowed-limit summary.
     c.absences = c.absences || [];
-    for (const ab of [...c.absences].sort((x, y) => (x.date || "").localeCompare(y.date || ""))) {
-      const row = el("div", "sem-abs-row");
-      const d = orgInput("date", ab.date || "", "", v => { ab.date = v || null; persist(); renderThisSemester(); }); d.className = "sem-edit-date";
-      const status = tagSelect(ABSENCE_STATUS, ab.status || "unexcused", v => { ab.status = v; persist(); renderThisSemester(); });
-      row.append(d, status, tinyDelete(`Absence: ${ab.date ? fmtDate(ab.date) : "(no date)"} — ${ab.status || "unexcused"}`, () => { c.absences = c.absences.filter(x => x.id !== ab.id); persist(); renderThisSemester(); }));
-      absWrap.append(row);
+    const absKey = c.id + ":absences", absEdit = semEdit.has(absKey);
+    const absSorted = [...c.absences].sort((x, y) => (x.date || "").localeCompare(y.date || ""));
+    const absWrap = el("div", "sem-field");
+    absWrap.append(sectionHeader("Absences", absKey));
+    if (absEdit) {
+      const absHead = el("div");
+      absHead.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:4px";
+      const allowedLabel = el("span", null, "allowed:"); allowedLabel.style.cssText = "font-size:0.72rem;color:var(--muted)";
+      const allowed = document.createElement("input");
+      allowed.type = "number"; allowed.min = 0; allowed.className = "sem-allowed"; allowed.value = c.allowed_absences ?? ""; allowed.placeholder = "—";
+      allowed.addEventListener("change", () => { c.allowed_absences = allowed.value === "" ? undefined : Number(allowed.value); persist(); renderThisSemester(); });
+      absHead.append(allowedLabel, allowed);
+      absWrap.append(absHead);
+      for (const ab of absSorted) {
+        const row = el("div", "sem-abs-row");
+        const d = orgInput("date", ab.date || "", "", v => { ab.date = v || null; persist(); renderThisSemester(); }); d.className = "sem-edit-date";
+        const status = tagSelect(ABSENCE_STATUS, ab.status || "unexcused", v => { ab.status = v; persist(); renderThisSemester(); });
+        row.append(d, status, tinyDelete(`Absence: ${ab.date ? fmtDate(ab.date) : "(no date)"} — ${ab.status || "unexcused"}`, () => { c.absences = c.absences.filter(x => x.id !== ab.id); persist(); renderThisSemester(); }));
+        absWrap.append(row);
+      }
+      const addAbs = el("button", "sem-add", "+ Add absence");
+      addAbs.addEventListener("click", () => { c.absences.push({ id: nextSubId(c.absences), date: isoDay(new Date()), status: "unexcused" }); persist(); renderThisSemester(); });
+      absWrap.append(addAbs);
+    } else {
+      for (const ab of absSorted) {
+        const line = el("div", "sem-read-line");
+        line.append(el("span", "sem-read-date", ab.date ? fmtDate(ab.date) : "—"));
+        line.append(el("span", "sem-tag tag-" + (ab.status || "unexcused"), ab.status || "unexcused"));
+        absWrap.append(line);
+      }
     }
-    const addAbs = el("button", "sem-add", "+ Add absence");
-    addAbs.addEventListener("click", () => { c.absences.push({ id: nextSubId(c.absences), date: isoDay(new Date()), status: "unexcused" }); persist(); renderThisSemester(); });
-    absWrap.append(addAbs);
-
     const total = c.absences.length;
     const unexcused = c.absences.filter(a => a.status !== "excused").length;
     const excused = total - unexcused;
